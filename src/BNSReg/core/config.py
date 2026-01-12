@@ -21,6 +21,14 @@ class BNSDatasetConfig():
     # I/O variables
     strain_precision: str = 'torch.float16'
     variables_precision: str = 'torch.float16'
+    rdcc_nbytes: int = 512 * 1024**2,
+    rdcc_nslots: int = 50_021,
+    rdcc_w0: int = 0.75import h5py
+
+import torch
+from torch.utils.data import Dataset
+
+from BNSReg.core.config import BNSDatasetConfig
 
     def __post_init__(self):
         valid_keys = {

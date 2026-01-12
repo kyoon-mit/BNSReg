@@ -3,7 +3,7 @@ import h5py
 import torch
 from torch.utils.data import Dataset
 
-from BNSReg.data.config import BNSDatasetConfig
+from BNSReg.core.config import BNSDatasetConfig
 
 # TODO: move to jsonargparse or importlib
 _DTYPE = {
@@ -11,7 +11,7 @@ _DTYPE = {
     'torch.float32': torch.float32,
 }
 
-class BNSDatasetRegression(Dataset):
+class BNSBaseDataset(Dataset):
     def __init__(self, cfg: BNSDatasetConfig):
         self.cfg = cfg
         self._f = None
@@ -38,13 +38,4 @@ class BNSDatasetRegression(Dataset):
         return self.n_samples
 
     def __getitem__(self, idx):
-        f = self._get_file()
-        start_idx = self.cfg.window_begin * self.cfg.strain_frequency
-        end_idx = self.cfg.window_end * self.cfg.strain_frequency
-
-        seq = f['data'][idx, :, start_idx:end_idx:self.cfg.downsample_factor]
-        X_sequence = torch.as_tensor(seq, dtype=_DTYPE[self.cfg.strain_precision])  # TODO: fix
-
-        y_target = self._get_vars(f, self.cfg.target_variables, idx, dtype=_DTYPE[self.cfg.variables_precision]) # TODO
-        z_observed = self._get_vars(f, self.cfg.observed_variables, idx, dtype=_DTYPE[self.cfg.variables_precision]) # TODO
-        return X_sequence, y_target, z_observed
+        raise NotImplementedError
