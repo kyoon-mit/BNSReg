@@ -2,6 +2,12 @@ import torch
 
 from BNSReg.dataset.base import BNSBaseDataset
 
+# TODO: move to jsonargparse or importlib
+_DTYPE = {
+    'torch.float16': torch.float16,
+    'torch.float32': torch.float32,
+}
+
 class BNSDatasetRegression(BNSBaseDataset):
     def __getitem__(self, idx):
         f = self._get_file()

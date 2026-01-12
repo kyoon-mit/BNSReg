@@ -5,12 +5,6 @@ from torch.utils.data import Dataset
 
 from BNSReg.core.config import BNSDatasetConfig
 
-# TODO: move to jsonargparse or importlib
-_DTYPE = {
-    'torch.float16': torch.float16,
-    'torch.float32': torch.float32,
-}
-
 class BNSBaseDataset(Dataset):
     def __init__(self, cfg: BNSDatasetConfig):
         self.cfg = cfg

@@ -23,12 +23,7 @@ class BNSDatasetConfig():
     variables_precision: str = 'torch.float16'
     rdcc_nbytes: int = 512 * 1024**2,
     rdcc_nslots: int = 50_021,
-    rdcc_w0: int = 0.75import h5py
-
-import torch
-from torch.utils.data import Dataset
-
-from BNSReg.core.config import BNSDatasetConfig
+    rdcc_w0: int = 0.75
 
     def __post_init__(self):
         valid_keys = {
@@ -48,6 +43,3 @@ from BNSReg.core.config import BNSDatasetConfig
         overlap = targets & observed
         if overlap:
             raise ValueError(f'Variables cannot be both target and observed: {overlap}.')
-    
-    def return_dict(self):
-        pass
