@@ -22,7 +22,7 @@ class BNSBaseDataset(Dataset):
             self._f = h5py.File(self.cfg.hdf5_path, 'r')
         return self._f
     
-    def _get_vars(self, f, keys, idx, dtype=torch.float16):
+    def _get_vars(self, f, keys, idx, dtype):
         tensor_list = []
         for k in keys:
             tensor_list.append(torch.as_tensor(f[k][idx], dtype=dtype))
