@@ -2,14 +2,14 @@ import lightning as L
 from torch.utils.data import DataLoader
 
 from BNSReg.core.config import BNSDataModuleConfig
-from BNSReg.dataset.regression import BNSDatasetRegression
+from BNSReg.tasks.parameter_estimation.dataset import BNSDatasetRegression
 
-class LitBNSDataModuleCallback(LitBNSDataModule): # TODO: move to another place
+class LitBNSDataModuleCallback(LitBNSDataRegression): # TODO: move to another place
     def __init__(self, **kwargs):
         cfg = BNSDataModuleConfig(**kwargs)
         super().__init__(cfg)
 
-class LitBNSDataModule(L.LightningDataModule):
+class LitBNSDataRegression(L.LightningDataModule):
     def __init__(self, cfg: BNSDataModuleConfig):
         super().__init__()
         self.cfg = cfg
