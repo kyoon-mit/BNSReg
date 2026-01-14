@@ -1,5 +1,4 @@
 from dataclasses import dataclass, fields
-from functools import cached_property
 import os.path
 
 @dataclass(frozen=True, slots=True)
