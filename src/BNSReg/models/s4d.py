@@ -5,12 +5,12 @@
 # Licensed under the Apache License, Version 2.0
 #
 # Modifications:
-# - Modified by Kyungseop Yoon (kyoon@mit.edu), 2025-12-30
+# - Modified by Kyungseop Yoon (kyoon@mit.edu), 2026-01-14
 #   * Changed import path for DropoutNd to match this repository's layout:
 #     from `src.models.nn` to `BNSREg.functions.dropout`.
 #   * `dropout.py` is also derived from state-spaces/s4 and retains its
 #     original Apache-2.0 licensing and attribution.
-#   * Removed unnecessary libraries that are unused in the original code.
+#   * Removed unnecessary imports.
 
 """Minimal version of S4D with extra options and features stripped out, for pedagogical purposes."""
 

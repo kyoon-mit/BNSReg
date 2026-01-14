@@ -3,13 +3,15 @@
 #
 # Copyright (c) 2023 The S4 Authors
 # Licensed under the Apache License, Version 2.0
+#
+# Modifications:
+# - Modified by Kyungseop Yoon (kyoon@mit.edu), 2026-01-14
+#   * Removed unnecessary imports.
 
 """Utility nn components, in particular handling activations, initializations, and normalization layers."""
 
-from functools import partial
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from einops import rearrange
 
 def stochastic_depth(input: torch.tensor, p: float, mode: str, training: bool = True):
