@@ -1,4 +1,5 @@
 from dataclasses import dataclass, fields
+from typing import Self
 import os.path
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -6,7 +7,7 @@ class BNSDatasetConfig():
     target_variables: tuple[str, ...]
     observed_variables: tuple[str, ...]
 
-    hdf5_path: str  = ''
+    hdf5_path: str | None = None
 
     # strain variables
     strain_frequency: int = 2048  # Hz
@@ -57,7 +58,6 @@ class BNSDataConfig(BNSDatasetConfig):
     persistent_workers: bool = True
 
     # internal
-    _dataset_kwargs_cache: dict[str, object] | None = None
     _dataloader_kwargs_cache: dict[str, object] | None = None
 
     def __post_init__(self):
@@ -69,21 +69,9 @@ class BNSDataConfig(BNSDatasetConfig):
         ):
             if not os.path.exists(path):
                 raise FileNotFoundError(f'{stage} file {path} does not exist.')
-
-    @property
-    def _dataset_kwargs(self) -> dict[str, object]:
-        cache = self._dataset_kwargs_cache
-        if cache is None:
-            cache = {
-                f.name: getattr(self, f.name)
-                for f in fields(BNSDatasetConfig)
-                if f.name != 'hdf5_path'
-            }
-            object.__setattr__(self, '_dataset_kwargs_cache', cache)
-        return cache
     
     @property
-    def _dataloader_kwargs(self) -> dict[str, object]:
+    def _dataloader_dict(self) -> dict[str, object]:
         cache = self._dataloader_kwargs_cache
         if cache is None:
             cache = dict(
@@ -95,7 +83,7 @@ class BNSDataConfig(BNSDatasetConfig):
         object.__setattr__(self, '_dataloader_kwargs_cache', cache)
         return cache
 
-    def dataset_kwargs(self, stage: str) -> dict[str, object]:
+    def get_cfg(self, stage: str) -> Self:
         if stage == 'train':
             path = self.train_file
         elif stage == 'test':
@@ -103,9 +91,11 @@ class BNSDataConfig(BNSDatasetConfig):
         elif stage == 'val':
             path = self.val_file
         else:
-            raise ValueError(f'Stage={stage} must be one of "train", "test", "val"')
-        return {'hdf5_path': path, **self._dataset_kwargs}
-    
+            raise ValueError('stage must be train|test|val')
+
+        object.__setattr__(self, 'hdf5_path', path)
+        return self
+
     def dataloader_kwargs(self, stage: str) -> dict[str, object]:
         if stage == 'train':
             batch_size = self.train_batch_size
@@ -118,7 +108,8 @@ class BNSDataConfig(BNSDatasetConfig):
             shuffle = False
         else:
             raise ValueError(f'Stage={stage} must be one of "train", "test", "val"')
-        return {'batch_size': batch_size, 'shuffle': shuffle, **self._dataloader_kwargs}
+        return {'batch_size': batch_size, 'shuffle': shuffle, **self._dataloader_dict}
+
 
 @dataclass(frozen=True, slots=True)
 class S4DModelConfig():
