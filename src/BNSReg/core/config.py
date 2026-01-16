@@ -1,12 +1,12 @@
 from dataclasses import dataclass, fields
 import os.path
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class BNSDatasetConfig():
-    hdf5_path: str
-
     target_variables: tuple[str, ...]
     observed_variables: tuple[str, ...]
+
+    hdf5_path: str  = ''
 
     # strain variables
     strain_frequency: int = 2048  # Hz
@@ -19,8 +19,8 @@ class BNSDatasetConfig():
     # I/O variables
     strain_precision: str = 'torch.float16'
     variables_precision: str = 'torch.float16'
-    rdcc_nbytes: int = 512 * 1024**2,
-    rdcc_nslots: int = 50_021,
+    rdcc_nbytes: int = 64 * 1024**2
+    rdcc_nslots: int = 10_007
     rdcc_w0: int = 0.75
 
     def __post_init__(self):
@@ -42,8 +42,8 @@ class BNSDatasetConfig():
         if overlap:
             raise ValueError(f'Variables cannot be both target and observed: {overlap}.')
 
-@dataclass(frozen=True, slots=True)
-class BNSDataModuleConfig(BNSDatasetConfig):
+@dataclass(frozen=True, slots=True, kw_only=True)
+class BNSDataConfig(BNSDatasetConfig):
     train_file: str
     test_file: str
     val_file: str
@@ -55,10 +55,13 @@ class BNSDataModuleConfig(BNSDatasetConfig):
     random_seed: int = 1234
     prefetch_factor: int = 2
     persistent_workers: bool = True
-    hdf5_path: str = '' # base hdf5_path is unused here; keep but make it explicit
+
+    # internal
+    _dataset_kwargs_cache: dict[str, object] | None = None
+    _dataloader_kwargs_cache: dict[str, object] | None = None
 
     def __post_init__(self):
-        super().__post_init__()
+        BNSDatasetConfig.__post_init__(self)
         for stage, path in (
             ('Train', self.train_file),
             ('Test', self.test_file),
@@ -67,24 +70,21 @@ class BNSDataModuleConfig(BNSDatasetConfig):
             if not os.path.exists(path):
                 raise FileNotFoundError(f'{stage} file {path} does not exist.')
 
-        object.__setattr__(self, '_base_dataset_kwargs_cache', None)
-        object.__setattr__(self, '_base_dataloader_kwargs_cache', None)
-
     @property
-    def _base_dataset_kwargs(self) -> dict[str, object]:
-        cache = self._base_dataset_kwargs_cache
+    def _dataset_kwargs(self) -> dict[str, object]:
+        cache = self._dataset_kwargs_cache
         if cache is None:
             cache = {
                 f.name: getattr(self, f.name)
                 for f in fields(BNSDatasetConfig)
                 if f.name != 'hdf5_path'
             }
-            object.__setattr__(self, '_base_dataset_kwargs_cache', cache)
+            object.__setattr__(self, '_dataset_kwargs_cache', cache)
         return cache
     
     @property
-    def _base_dataloader_kwargs(self) -> dict[str, object]:
-        cache = self._base_dataloader_kwargs_cache
+    def _dataloader_kwargs(self) -> dict[str, object]:
+        cache = self._dataloader_kwargs_cache
         if cache is None:
             cache = dict(
                 num_workers=self.num_workers,
@@ -92,7 +92,7 @@ class BNSDataModuleConfig(BNSDatasetConfig):
                 persistent_workers=self.persistent_workers,
                 random_seed=self.random_seed,
             )
-        object.__setattr__(self, '_base_dataloader_kwargs_cache', cache)
+        object.__setattr__(self, '_dataloader_kwargs_cache', cache)
         return cache
 
     def dataset_kwargs(self, stage: str) -> dict[str, object]:
@@ -104,7 +104,7 @@ class BNSDataModuleConfig(BNSDatasetConfig):
             path = self.val_file
         else:
             raise ValueError(f'Stage={stage} must be one of "train", "test", "val"')
-        return {'hdf5_path': path, **self._base_dataset_kwargs}
+        return {'hdf5_path': path, **self._dataset_kwargs}
     
     def dataloader_kwargs(self, stage: str) -> dict[str, object]:
         if stage == 'train':
@@ -118,4 +118,21 @@ class BNSDataModuleConfig(BNSDatasetConfig):
             shuffle = False
         else:
             raise ValueError(f'Stage={stage} must be one of "train", "test", "val"')
-        return {'batch_size': batch_size, 'shuffle': shuffle, **self._base_dataloader_kwargs}
+        return {'batch_size': batch_size, 'shuffle': shuffle, **self._dataloader_kwargs}
+
+@dataclass(frozen=True, slots=True)
+class S4DModelConfig():
+    d_input: int
+    d_output: int
+    d_model: int
+    d_state: int
+    n_layers: int
+    dropout: float
+
+    # kernel arguments
+    dt_min: float = 0.001
+    dt_max: float = 0.1
+    lr: float | None = None
+
+    def model_kwargs(self) -> dict[str, object]:
+        return {f.name: getattr(self, f.name) for f in fields(self)}
