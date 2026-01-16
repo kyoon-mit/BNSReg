@@ -18,6 +18,8 @@
 #     in S4Model.
 #   - Added arguments to S4Model and passed it to S4D initialization
 #     (without further modification to the upstream kernel logic).
+#   - Replaced use of Python complex literals (e.g. `1j`) with
+#     `torch.complex(...)` to ensure compatibility with `torch.compile`
 
 """Minimal version of S4D with extra options and features stripped out, for pedagogical purposes."""
 
@@ -57,7 +59,10 @@ class S4DKernel(nn.Module):
         # Materialize parameters
         dt = torch.exp(self.log_dt) # (H)
         C = torch.view_as_complex(self.C) # (H N)
-        A = -torch.exp(self.log_A_real) + 1j * self.A_imag # (H N)
+        # ORIGINAL CODE
+        # A = -torch.exp(self.log_A_real) + 1j * self.A_imag # (H N)
+        # MODIFIED CODE FOR torch.compile SAFETY
+        A = torch.complex(-torch.exp(self.log_A_real), self.A_imag)
 
         # Vandermonde multiplication
         dtA = A * dt.unsqueeze(-1)  # (H N)
