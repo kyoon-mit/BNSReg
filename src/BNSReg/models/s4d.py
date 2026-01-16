@@ -16,7 +16,7 @@
 #   - Removed unused imports and simplified the code for pedagogical clarity.
 #   - Replaced the local `dropout_fn` alias with direct use of `DropoutNd`
 #     in S4Model.
-#   - Added an `lr` argument to S4Model and passed it to S4D initialization
+#   - Added arguments to S4Model and passed it to S4D initialization
 #     (without further modification to the upstream kernel logic).
 
 """Minimal version of S4D with extra options and features stripped out, for pedagogical purposes."""
@@ -132,10 +132,13 @@ class S4Model(nn.Module):
         d_input,
         d_output=10,
         d_model=256,
+        d_state=64,
         n_layers=4,
         dropout=0.2,
         prenorm=False,
         lr=None,
+        dt_min=0.001,
+        dt_max=0.1
     ):
         super().__init__()
 
@@ -150,7 +153,7 @@ class S4Model(nn.Module):
         self.dropouts = nn.ModuleList()
         for _ in range(n_layers):
             self.s4_layers.append(
-                S4D(d_model, dropout=dropout, transposed=True, lr=min(0.001, lr))
+                S4D(d_model, d_state=d_state, dropout=dropout, transposed=True, dt_min=dt_min, dt_max=dt_max)
             )
             self.norms.append(nn.LayerNorm(d_model))
             self.dropouts.append(DropoutNd(dropout))
