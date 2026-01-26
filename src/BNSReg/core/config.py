@@ -4,9 +4,6 @@ import os.path
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class BNSDatasetConfig():
-    target_variables: tuple[str, ...]
-    observed_variables: tuple[str, ...]
-
     hdf5_path: str | None = None
 
     # strain variables
@@ -24,27 +21,8 @@ class BNSDatasetConfig():
     rdcc_nslots: int = 10_007
     rdcc_w0: int = 0.75
 
-    def __post_init__(self):
-        valid_keys = {
-            'chi1', 'chi2', 'chirp_mass', 'dec', 'distance', 'inclination',
-            'mass_1', 'mass_2', 'mass_ratio', 'phi', 'phic', 'psi',
-            's1z', 's2z', 'snr'
-        }
-        targets = set(self.target_variables)
-        observed = set(self.observed_variables)
-
-        invalid = (targets | observed) - valid_keys
-        if invalid:
-            raise ValueError(
-                f'Invalid target_variables: {invalid}. Valid options are {valid_keys}.'
-            )
-        
-        overlap = targets & observed
-        if overlap:
-            raise ValueError(f'Variables cannot be both target and observed: {overlap}.')
-
 @dataclass(frozen=True, slots=True, kw_only=True)
-class BNSDataConfig(BNSDatasetConfig):
+class BNSDataModuleConfig(BNSDatasetConfig):
     train_file: str
     test_file: str
     val_file: str
@@ -61,7 +39,7 @@ class BNSDataConfig(BNSDatasetConfig):
     _dataloader_kwargs_cache: dict[str, object] | None = None
 
     def __post_init__(self):
-        BNSDatasetConfig.__post_init__(self)
+        # Check if files exist
         for stage, path in (
             ('Train', self.train_file),
             ('Test', self.test_file),
@@ -110,6 +88,39 @@ class BNSDataConfig(BNSDatasetConfig):
             raise ValueError(f'Stage={stage} must be one of "train", "test", "val"')
         return {'batch_size': batch_size, 'shuffle': shuffle, **self._dataloader_dict}
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class BNSDataModuleRegressionConfig(BNSDataModuleConfig):
+    target_variables: tuple[str, ...]
+    observed_variables: tuple[str, ...]
+
+    def __post_init__(self):
+        # Check if files exist
+        for stage, path in (
+            ('Train', self.train_file),
+            ('Test', self.test_file),
+            ('Validation', self.val_file),
+        ):
+            if not os.path.exists(path):
+                raise FileNotFoundError(f'{stage} file {path} does not exist.')
+        
+        # Check variables
+        valid_keys = {
+            'chi1', 'chi2', 'chirp_mass', 'dec', 'distance', 'inclination',
+            'mass_1', 'mass_2', 'mass_ratio', 'phi', 'phic', 'psi',
+            's1z', 's2z', 'snr'
+        }
+        targets = set(self.target_variables)
+        observed = set(self.observed_variables)
+
+        invalid = (targets | observed) - valid_keys
+        if invalid:
+            raise ValueError(
+                f'Invalid target_variables: {invalid}. Valid options are {valid_keys}.'
+            )
+        
+        overlap = targets & observed
+        if overlap:
+            raise ValueError(f'Variables cannot be both target and observed: {overlap}.')
 
 @dataclass(frozen=True, slots=True)
 class S4DModelConfig():

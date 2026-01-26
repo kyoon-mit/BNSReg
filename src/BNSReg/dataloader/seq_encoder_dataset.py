@@ -1,11 +1,11 @@
 import lightning as L
 from torch.utils.data import DataLoader
 
-from BNSReg.core.config import BNSDataModuleRegressionConfig
+from BNSReg.core.config import BNSDataModuleConfig
 from BNSReg.dataset.regression_dataset import BNSDatasetRegression
 
-class LitBNSDataRegression(L.LightningDataModule):
-    def __init__(self, cfg: BNSDataModuleRegressionConfig):
+class LitBNSDataSeqEncoder(L.LightningDataModule):
+    def __init__(self, cfg: BNSDataModuleConfig):
         super().__init__()
         self.cfg = cfg
 
