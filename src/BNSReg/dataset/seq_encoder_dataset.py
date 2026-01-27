@@ -1,17 +1,19 @@
 import torch
 
-from BNSReg.dataset.base_dataset import BNSBaseDataset
+from BNSReg.dataset.base_dataset import BNSBaseDataset, Stage
+from BNSReg.core.config import BNSDatasetConfig
 from BNSReg.utils.config_tools import str_to_dtype
 
 class BNSDatasetSeqEncoder(BNSBaseDataset):
+    def __init__(self, stage: Stage, cfg: BNSDatasetConfig):
+        super().__init__(stage, cfg)
+        self._set_index()
+
     def __getitem__(self, idx):
         f = self._get_file()
 
-        start_idx = self.cfg.window_begin * self.cfg.strain_frequency
-        end_idx = self.cfg.window_end * self.cfg.strain_frequency
-
-        injected_seq = f['injected_data'][idx, :, start_idx:end_idx:self.cfg.downsample_factor]
-        sig_only_seq = f['sig_only_data'][idx, :, start_idx:end_idx:self.cfg.downsample_factor]
+        injected_seq = f[self.cfg.injected_data_key][idx, :, self.start_idx:self.end_idx:self.cfg.downsample_factor]
+        sig_only_seq = f[self.cfg.waveform_data_key][idx, :, self.start_idx:self.end_idx:self.cfg.downsample_factor]
 
         input = torch.as_tensor(injected_seq, dtype=str_to_dtype(self.cfg.strain_precision))
         target = torch.as_tensor(sig_only_seq, dtype=str_to_dtype(self.cfg.strain_precision))

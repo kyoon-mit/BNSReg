@@ -4,41 +4,28 @@ import os.path
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class BNSDatasetConfig():
-    hdf5_path: str | None = None
-
-    # strain variables
-    strain_frequency: int = 2048  # Hz
-    strain_duration: int = 64     # sec
-    coalescence_time: int = 63    # sec
-    window_begin: int = 0         # sec
-    window_end: int = 55          # sec
-    downsample_factor: int = 1
-
-    # I/O variables
-    strain_precision: str = 'torch.float16'
-    variables_precision: str = 'torch.float16'
-    rdcc_nbytes: int = 64 * 1024**2
-    rdcc_nslots: int = 10_007
-    rdcc_w0: int = 0.75
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class BNSDataModuleConfig(BNSDatasetConfig):
     train_file: str
     test_file: str
     val_file: str
-    train_batch_size: int
-    val_batch_size: int
-    test_batch_size: int
-    num_workers: int
-    shuffle: bool = True
-    random_seed: int = 1234
-    prefetch_factor: int = 2
-    persistent_workers: bool = True
+    injected_data_key : str = 'data'
+    waveform_data_key : str = ''
 
-    # internal
-    _dataloader_kwargs_cache: dict[str, object] | None = None
+    # strain variables
+    strain_frequency: int = 2048  # Hz
+    downsample_factor: int = 1
+    strain_duration: float = 64.0   # sec
+    coalescence_time: float = 63.0  # sec
+    window_begin: float = 0.0       # sec
+    window_end: float = 55.0        # sec
 
-    def __post_init__(self):
+    # I/O variables
+    strain_precision: str = 'torch.float32'
+    variables_precision: str = 'torch.float32'
+    rdcc_nbytes: int = 64 * 1024**2
+    rdcc_nslots: int = 10_007
+    rdcc_w0: float = 0.75
+
+    def __post_init__(self) -> None:
         # Check if files exist
         for stage, path in (
             ('Train', self.train_file),
@@ -47,7 +34,20 @@ class BNSDataModuleConfig(BNSDatasetConfig):
         ):
             if not os.path.exists(path):
                 raise FileNotFoundError(f'{stage} file {path} does not exist.')
-    
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class BNSDataModuleConfig(BNSDatasetConfig):
+    train_batch_size: int
+    val_batch_size: int
+    test_batch_size: int
+    num_workers: int = 0
+    shuffle: bool = True
+    prefetch_factor: int | None = None
+    persistent_workers: bool = False
+
+    # internal
+    _dataloader_kwargs_cache: dict[str, object] | None = None
+
     @property
     def _dataloader_dict(self) -> dict[str, object]:
         cache = self._dataloader_kwargs_cache
@@ -56,23 +56,9 @@ class BNSDataModuleConfig(BNSDatasetConfig):
                 num_workers=self.num_workers,
                 prefetch_factor=self.prefetch_factor,
                 persistent_workers=self.persistent_workers,
-                random_seed=self.random_seed,
             )
         object.__setattr__(self, '_dataloader_kwargs_cache', cache)
         return cache
-
-    def get_cfg(self, stage: str) -> Self:
-        if stage == 'train':
-            path = self.train_file
-        elif stage == 'test':
-            path = self.test_file
-        elif stage == 'val':
-            path = self.val_file
-        else:
-            raise ValueError('stage must be train|test|val')
-
-        object.__setattr__(self, 'hdf5_path', path)
-        return self
 
     def dataloader_kwargs(self, stage: str) -> dict[str, object]:
         if stage == 'train':
@@ -93,7 +79,7 @@ class BNSDataModuleRegressionConfig(BNSDataModuleConfig):
     target_variables: tuple[str, ...]
     observed_variables: tuple[str, ...]
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # Check if files exist
         for stage, path in (
             ('Train', self.train_file),
@@ -122,8 +108,14 @@ class BNSDataModuleRegressionConfig(BNSDataModuleConfig):
         if overlap:
             raise ValueError(f'Variables cannot be both target and observed: {overlap}.')
 
+
 @dataclass(frozen=True, slots=True)
-class S4DModelConfig():
+class BNSModelConfig():
+    def model_kwargs(self) -> dict[str, object]:
+        return {f.name: getattr(self, f.name) for f in fields(self)}
+
+@dataclass(frozen=True, slots=True)
+class S4DModelConfig(BNSModelConfig):
     d_input: int
     d_output: int
     d_model: int
@@ -136,5 +128,13 @@ class S4DModelConfig():
     dt_max: float = 0.1
     lr: float | None = None
 
-    def model_kwargs(self) -> dict[str, object]:
-        return {f.name: getattr(self, f.name) for f in fields(self)}
+    def __post_init__(self) -> None:
+        if self.dt_min >= self.dt_max:
+            raise ValueError('dt_min must be < dt_max')
+
+@dataclass(frozen=True, slots=True)
+class ConvAEModelConfig(BNSModelConfig):
+    n_layers: int
+    latent_channels: int
+    kernel_size: int
+    pool_stride: int
