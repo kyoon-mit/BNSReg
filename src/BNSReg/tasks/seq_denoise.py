@@ -11,6 +11,7 @@ class LitModelSeqAE(LitBaseTask):
         self.cfg = cfg
         self.criterion = torch.nn.MSELoss(reduction='mean')
         self.model = None
+        self.configure_model()
 
     def configure_model(self):
         if self.model is not None:
