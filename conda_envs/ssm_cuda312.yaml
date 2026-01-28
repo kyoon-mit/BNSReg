@@ -6,6 +6,7 @@ channels:
 dependencies:
   - _openmp_mutex=4.5=7_kmp_llvm
   - _python_abi3_support=1.0=hd8ed1ab_2
+  - absl-py=2.3.1=pyhd8ed1ab_0
   - aiohappyeyeballs=2.6.1=pyhd8ed1ab_0
   - aiohttp=3.13.2=py312h27b7581_0
   - aiosignal=1.4.0=pyhd8ed1ab_0
@@ -71,6 +72,7 @@ dependencies:
   - gmp=6.3.0=hac33072_2
   - gmpy2=2.2.1=py312hcaba1f9_2
   - graphite2=1.3.14=hecca717_2
+  - grpcio=1.73.1=py312h6f3464c_1
   - h2=4.3.0=pyhcf101f3_0
   - h5netcdf=1.7.3=pyhd8ed1ab_0
   - h5py=3.15.1=nompi_py312ha4f8f14_101
@@ -173,6 +175,7 @@ dependencies:
   - lightning=2.6.0=pyhcf101f3_0
   - lightning-utilities=0.15.2=pyhd8ed1ab_0
   - llvm-openmp=15.0.7=h0cdce71_0
+  - markdown=3.10.1=pyhcf101f3_0
   - markupsafe=3.0.3=py312h8a5da7c_0
   - matplotlib=3.10.8=py312h7900ff3_0
   - matplotlib-base=3.10.8=py312he3d6523_0
@@ -246,6 +249,8 @@ dependencies:
   - stack_data=0.6.3=pyhd8ed1ab_1
   - sympy=1.14.0=pyh2585a3b_105
   - tbb=2021.13.0=h8d10470_4
+  - tensorboard=2.20.0=pyhe01879c_0
+  - tensorboard-data-server=0.7.0=py312h4eba8b5_4
   - tk=8.6.13=noxft_ha0e22de_103
   - tomli=2.3.0=pyhcf101f3_0
   - torchmetrics=1.8.2=pyhd8ed1ab_0
@@ -264,6 +269,7 @@ dependencies:
   - wandb=0.23.1=py312h2dd4075_0
   - wayland=1.24.0=hd6090a7_1
   - wcwidth=0.2.14=pyhd8ed1ab_0
+  - werkzeug=3.1.5=pyhcf101f3_0
   - wheel=0.45.1=pyhd8ed1ab_1
   - xarray=2025.12.0=pyhcf101f3_0
   - xarray-einstats=0.9.1=pyhd8ed1ab_0
@@ -296,7 +302,6 @@ dependencies:
   - zlib-ng=2.3.2=h54a6638_0
   - zstd=1.5.7=hb78ec9c_6
   - pip:
-      - bnsreg==0.1.0
       - docstring-parser==0.17.0
       - importlib-resources==6.5.2
       - jsonargparse==4.44.0
