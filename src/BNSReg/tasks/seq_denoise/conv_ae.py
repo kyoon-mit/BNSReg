@@ -5,7 +5,7 @@ from BNSReg.tasks.base_task import LitBaseTask
 from BNSReg.models.conv_ae import ConvAE
 from BNSReg.core.config import ConvAEModelConfig
     
-class LitModelSeqAE(LitBaseTask):
+class LitModelConvAE(LitBaseTask):
     def __init__(self, cfg: ConvAEModelConfig):
         super().__init__()
         self.cfg = cfg
