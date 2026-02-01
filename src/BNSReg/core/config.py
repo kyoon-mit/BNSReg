@@ -138,3 +138,9 @@ class ConvAEModelConfig(BNSModelConfig):
     latent_channels: int
     kernel_size: int
     pool_stride: int
+
+@dataclass(frozen=True, slots=True)
+class ConvAEAPModelConfig(BNSModelConfig):
+    seq_length: int
+    n_layers: int
+    base_dim: int

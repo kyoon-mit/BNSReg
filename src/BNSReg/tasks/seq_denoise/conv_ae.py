@@ -2,8 +2,8 @@ import torch
 from torch import optim
 
 from BNSReg.tasks.base_task import LitBaseTask
-from BNSReg.models.conv_ae import ConvAE
-from BNSReg.core.config import ConvAEModelConfig
+from BNSReg.models.conv_ae import ConvAE, ConvAEAP
+from BNSReg.core.config import ConvAEModelConfig, ConvAEAPModelConfig
     
 class LitModelConvAE(LitBaseTask):
     def __init__(self, cfg: ConvAEModelConfig):
@@ -45,3 +45,14 @@ class LitModelConvAE(LitBaseTask):
             'optimizer': optimizer,
             'lr_scheduler': {'scheduler': scheduler, 'interval': 'epoch'},
         }
+    
+class LitModelConvAEAP(LitModelConvAE):
+    def __init__(self, cfg: ConvAEAPModelConfig):
+        super().__init__(cfg)
+
+    def configure_model(self):
+        if self.model is not None:
+            return
+        else:
+            self.model = ConvAEAP(**self.cfg.model_kwargs())
+            self.model = torch.compile(self.model)

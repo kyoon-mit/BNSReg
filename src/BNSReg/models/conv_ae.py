@@ -23,7 +23,7 @@ class ConvAE(nn.Module):
         self.pad = kernel_size // 2
 
         enc = OrderedDict()
-        for i in range(n_layers):
+        for i in range(self.n_layers):
             in_ch = 1 if i == 0 else latent_channels
             enc[f'conv{i}'] = nn.Conv1d(
                 in_channels=in_ch,
@@ -36,7 +36,7 @@ class ConvAE(nn.Module):
         self.encoder = nn.Sequential(enc)
 
         dec = OrderedDict()
-        for i in range(n_layers):
+        for i in range(self.n_layers):
             dec[f'deconv{i}'] = nn.ConvTranspose1d(
                 in_channels=latent_channels,
                 out_channels=latent_channels,
@@ -50,6 +50,62 @@ class ConvAE(nn.Module):
     def forward(self, x):
         # x: (B, L)
         L = x.shape[-1]
+
+        x = x.unsqueeze(1)  # (B, 1, L)
+        z = self.encoder(x)
+        y = self.decoder(z)
+
+        if y.shape[-1] > L:
+            y = y[..., :L]
+        elif y.shape[-1] < L:
+            y = nn.functional.pad(y, (0, L - y.shape[-1]))
+
+        return y
+    
+class ConvAEAP(nn.Module): # Area-preserving
+    def __init__(
+        self,
+        seq_length: int = 4, # typically, multiple of a power of 2
+        n_layers: int = 8,
+        base_dim: int = 16, # base channel dimension
+    ):
+        super().__init__()
+
+        self.n_layers = n_layers
+        self.seq_length = seq_length
+        self.base_dim = base_dim
+
+        enc, dec = OrderedDict(), OrderedDict()
+
+        channel_dims = [1 if i==0
+                        else self.base_dim * (2**i) for i in range(self.n_layers+1)]
+        kernel_sizes = [self.seq_length // (2**(i+1)) + 1 for i in range(self.n_layers)]
+
+        for i in range(self.n_layers):
+            enc[f'conv{i}'] = nn.Conv1d(
+                in_channels=channel_dims[i],
+                out_channels=channel_dims[i+1],
+                kernel_size=kernel_sizes[i]
+            )
+            enc[f'norm{i}'] = nn.InstanceNorm1d(channel_dims[i+1])
+            enc[f'act{i}'] = nn.LeakyReLU()
+            ###
+            j = self.n_layers - i
+            dec[f'deconv{i}'] = nn.ConvTranspose1d(
+                in_channels=channel_dims[j],
+                out_channels=channel_dims[j-1],
+                kernel_size=kernel_sizes[j-1]
+            )
+            dec[f'norm{i}'] = nn.InstanceNorm1d(channel_dims[j-1])
+            dec[f'act{i}'] = nn.LeakyReLU()
+        
+        self.encoder = nn.Sequential(enc)
+        self.decoder = nn.Sequential(dec)
+
+    def forward(self, x):
+        # x: (B, L)
+        L = x.shape[-1]
+        assert L == self.seq_length
 
         x = x.unsqueeze(1)  # (B, 1, L)
         z = self.encoder(x)

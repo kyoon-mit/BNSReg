@@ -1,7 +1,5 @@
 from lightning.pytorch import LightningModule
 
-from BNSReg.core.config import BNSModelConfig
-
 class LitBaseTask(LightningModule):
     def training_step(self, batch, batch_idx):
         loss = self.compute_loss(batch)
