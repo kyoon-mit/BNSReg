@@ -144,3 +144,8 @@ class ConvAEAPModelConfig(BNSModelConfig):
     seq_length: int
     n_layers: int
     base_dim: int
+
+@dataclass(frozen=True, slots=True)
+class ConvAttentionAEAPModelConfig(ConvAEAPModelConfig):
+    num_heads: int
+    dropout: float

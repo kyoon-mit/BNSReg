@@ -48,10 +48,10 @@ class ConvAE(nn.Module):
         self.decoder = nn.Sequential(dec)
 
     def forward(self, x):
-        # x: (B, L)
+        # x: (N, L)
         L = x.shape[-1]
 
-        x = x.unsqueeze(1)  # (B, 1, L)
+        x = x.unsqueeze(1)  # (N, 1, L)
         z = self.encoder(x)
         y = self.decoder(z)
 
@@ -77,38 +77,82 @@ class ConvAEAP(nn.Module): # Area-preserving
 
         enc, dec = OrderedDict(), OrderedDict()
 
-        channel_dims = [1 if i==0
+        self.channel_dims = [1 if i==0
                         else self.base_dim * (2**i) for i in range(self.n_layers+1)]
-        kernel_sizes = [self.seq_length // (2**(i+1)) + 1 for i in range(self.n_layers)]
+        self.kernel_sizes = [self.seq_length // (2**(i+1)) + 1 for i in range(self.n_layers)]
 
         for i in range(self.n_layers):
             enc[f'conv{i}'] = nn.Conv1d(
-                in_channels=channel_dims[i],
-                out_channels=channel_dims[i+1],
-                kernel_size=kernel_sizes[i]
+                in_channels=self.channel_dims[i],
+                out_channels=self.channel_dims[i+1],
+                kernel_size=self.kernel_sizes[i]
             )
-            enc[f'norm{i}'] = nn.InstanceNorm1d(channel_dims[i+1])
+            enc[f'norm{i}'] = nn.InstanceNorm1d(self.channel_dims[i+1])
             enc[f'act{i}'] = nn.LeakyReLU()
             ###
             j = self.n_layers - i
             dec[f'deconv{i}'] = nn.ConvTranspose1d(
-                in_channels=channel_dims[j],
-                out_channels=channel_dims[j-1],
-                kernel_size=kernel_sizes[j-1]
+                in_channels=self.channel_dims[j],
+                out_channels=self.channel_dims[j-1],
+                kernel_size=self.kernel_sizes[j-1]
             )
-            dec[f'norm{i}'] = nn.InstanceNorm1d(channel_dims[j-1])
+            dec[f'norm{i}'] = nn.InstanceNorm1d(self.channel_dims[j-1])
             dec[f'act{i}'] = nn.LeakyReLU()
         
         self.encoder = nn.Sequential(enc)
+        self.bottleneck = nn.Linear(self.channel_dims[-1], self.channel_dims[-1])
         self.decoder = nn.Sequential(dec)
 
     def forward(self, x):
-        # x: (B, L)
+        # x: (N, L)
         L = x.shape[-1]
         assert L == self.seq_length
 
-        x = x.unsqueeze(1)  # (B, 1, L)
+        x = x.unsqueeze(1)  # (N, 1, L)
         z = self.encoder(x)
+        z = z.transpose(1, 2)
+        for _ in range(4):
+            z = self.bottleneck(z)
+        z = z.transpose(1, 2)
+        y = self.decoder(z)
+
+        if y.shape[-1] > L:
+            y = y[..., :L]
+        elif y.shape[-1] < L:
+            y = nn.functional.pad(y, (0, L - y.shape[-1]))
+
+        return y
+
+class ConvAttentionAEAP(ConvAEAP): # Attention + Area-preserving
+    def __init__(
+        self,
+        seq_length: int = 4, # typically, multiple of a power of 2
+        n_layers: int = 8,
+        base_dim: int = 16, # base channel dimension
+        num_heads: int = 4,
+        dropout: float = 0.01,
+        
+    ):
+        super().__init__(seq_length=seq_length, n_layers=n_layers, base_dim=base_dim)
+        self.attention = nn.MultiheadAttention(
+            embed_dim=self.channel_dims[-1],
+            num_heads=num_heads,
+            dropout=dropout,
+            batch_first=True # (N, L, C)
+        )
+
+    def forward(self, x):
+        # x: (N, L)
+        L = x.shape[-1]
+        assert L == self.seq_length
+
+        x = x.unsqueeze(1)  # (N, 1, L)
+        z = self.encoder(x).transpose(1, 2) # (N, C, L) -> (N, L, C)
+        h, _ = self.attention(z, z, z) # (N, L, C) -> (N, L, E: embed_dim) | E = C
+        for _ in range(4):
+            h = self.bottleneck(h)
+        h, _ = self.attention(h, h, h)
+        z = h.transpose(1, 2) # (N, L, C) -> (N, C, L)
         y = self.decoder(z)
 
         if y.shape[-1] > L:

@@ -2,8 +2,8 @@ import torch
 from torch import optim
 
 from BNSReg.tasks.base_task import LitBaseTask
-from BNSReg.models.conv_ae import ConvAE, ConvAEAP
-from BNSReg.core.config import ConvAEModelConfig, ConvAEAPModelConfig
+from BNSReg.models.conv_ae import ConvAE, ConvAEAP, ConvAttentionAEAP
+from BNSReg.core.config import ConvAEModelConfig, ConvAEAPModelConfig, ConvAttentionAEAPModelConfig
     
 class LitModelConvAE(LitBaseTask):
     def __init__(self, cfg: ConvAEModelConfig):
@@ -55,4 +55,15 @@ class LitModelConvAEAP(LitModelConvAE):
             return
         else:
             self.model = ConvAEAP(**self.cfg.model_kwargs())
+            self.model = torch.compile(self.model)
+
+class LitModelConvAttentionAEAP(LitModelConvAE):
+    def __init__(self, cfg: ConvAttentionAEAPModelConfig):
+        super().__init__(cfg)
+
+    def configure_model(self):
+        if self.model is not None:
+            return
+        else:
+            self.model = ConvAttentionAEAP(**self.cfg.model_kwargs())
             self.model = torch.compile(self.model)
