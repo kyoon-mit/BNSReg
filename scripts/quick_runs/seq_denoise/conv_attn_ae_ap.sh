@@ -1,6 +1,6 @@
 python -m BNSReg.core.main fit \
     --model BNSReg.tasks.seq_denoise.conv_ae.LitModelConvAttentionAEAP \
-    --model.cfg.seq_length 64 \
+    --model.cfg.seq_length 256 \
     --model.cfg.n_layers 4 \
     --model.cfg.base_dim 8 \
     --model.cfg.num_heads 4 \
@@ -16,5 +16,5 @@ python -m BNSReg.core.main fit \
     --data.cfg.waveform_data_key signal_only_data \
     --data.cfg.strain_frequency 512 \
     --data.cfg.downsample_factor 2 \
-    --data.cfg.window_begin 62.75 \
+    --data.cfg.window_begin 62 \
     --data.cfg.window_end 63
