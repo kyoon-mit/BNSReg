@@ -13,12 +13,12 @@ class LitBNSDataRegression(L.LightningDataModule):
         # Assign train/val datasets for use in dataloaders
         if stage == "fit":
             # instantiate train and val datasets separately
-            self.train_dataset = BNSDatasetRegression(self.cfg.get_cfg('train'))
-            self.val_dataset = BNSDatasetRegression(self.cfg.get_cfg('val'))
+            self.train_dataset = BNSDatasetRegression('train', self.cfg)
+            self.val_dataset = BNSDatasetRegression('val', self.cfg)
 
         # Assign test dataset for use in dataloader
         elif stage in ("test", "predict"):
-            self.test_dataset = BNSDatasetRegression(self.cfg.get_cfg('test'))
+            self.test_dataset = BNSDatasetRegression('test', self.cfg)
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset, **self.cfg.dataloader_kwargs('train'))
