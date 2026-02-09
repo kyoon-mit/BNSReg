@@ -9,17 +9,18 @@ python -m BNSReg.core.main fit \
     --data BNSReg.dataloader.regression_loader.LitBNSDataRegression \
     --data.cfg.target_variables '["chirp_mass"]' \
     --data.cfg.observed_variables '["snr"]' \
-    --data.cfg.train_file /home/kyoon/Dev/seq_bns_snr_20_30_uniform_512Hz_10K/train/sig_combined_train.h5 \
-    --data.cfg.val_file /home/kyoon/Dev/seq_bns_snr_20_30_uniform_512Hz_10K/val/sig_combined_val.h5 \
-    --data.cfg.test_file /home/kyoon/Dev/seq_bns_snr_20_30_uniform_512Hz_10K/test/sig_combined_test.h5 \
-    --data.cfg.injected_data_key injected_data \
+    --data.cfg.train_file /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/bns_quick_test/train/sig_combined_train.h5 \
+    --data.cfg.val_file /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/bns_quick_test/val/sig_combined_val.h5 \
+    --data.cfg.test_file /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/bns_quick_test/test/sig_combined_test.h5 \
+    --data.cfg.injected_data_key data \
     --data.cfg.train_batch_size 32 \
     --data.cfg.val_batch_size 32 \
     --data.cfg.test_batch_size 32 \
-    --data.cfg.strain_frequency 512 \
+    --data.cfg.strain_frequency 256 \
     --data.cfg.window_begin 62.75 \
     --data.cfg.window_end 63 \
     --data.cfg.downsample_factor 2 \
     --data.cfg.num_workers 4 \
     --data.cfg.prefetch_factor 2 \
-    --data.cfg.persistent_workers True
+    --data.cfg.persistent_workers True \
+    --trainer.fast_dev_run True

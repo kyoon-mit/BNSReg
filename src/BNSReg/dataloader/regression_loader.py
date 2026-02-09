@@ -7,6 +7,7 @@ from BNSReg.dataset.regression_dataset import BNSDatasetRegression
 class LitBNSDataRegression(L.LightningDataModule):
     def __init__(self, cfg: BNSDataModuleRegressionConfig):
         super().__init__()
+        self.save_hyperparameters()
         self.cfg = cfg
 
     def setup(self, stage: str | None = None):
