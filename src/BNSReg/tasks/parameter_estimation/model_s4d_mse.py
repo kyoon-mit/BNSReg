@@ -6,10 +6,10 @@ from BNSReg.models.s4d import S4Model
 from BNSReg.core.config import S4DModelConfig
 
 class LitModelS4DMSE(LitBaseTask):
-    def __init__(self, cfg: S4DModelConfig):
+    def __init__(self, model_cfg: S4DModelConfig):
         super().__init__()
         self.save_hyperparameters()
-        self.cfg = cfg
+        self.cfg = model_cfg
         self.criterion = torch.nn.MSELoss(reduction='mean')
         self.model = None
         self.configure_model()

@@ -5,10 +5,10 @@ from BNSReg.core.config import BNSDataModuleRegressionConfig
 from BNSReg.dataset.regression_dataset import BNSDatasetRegression
 
 class LitBNSDataRegression(L.LightningDataModule):
-    def __init__(self, cfg: BNSDataModuleRegressionConfig):
+    def __init__(self, data_cfg: BNSDataModuleRegressionConfig):
         super().__init__()
         self.save_hyperparameters()
-        self.cfg = cfg
+        self.cfg = data_cfg
 
     def setup(self, stage: str | None = None):
         # Assign train/val datasets for use in dataloaders
