@@ -37,11 +37,14 @@ class BNSBaseDataset(Dataset):
             self._f = h5py.File(self.file_path, 'r')
         return self._f
     
-    def _get_vars(self, f, keys, idx, dtype):
+    def _get_vars(self, f, keys, idx, dtype) -> torch.Tensor | None:
         tensor_list = []
-        for k in keys:
-            tensor_list.append(torch.as_tensor(f[k][idx], dtype=dtype))
-        return torch.stack(tensor_list)
+        if keys:
+            for k in keys:
+                tensor_list.append(torch.as_tensor(f[k][idx], dtype=dtype))
+            return torch.stack(tensor_list)
+        else:
+            return torch.empty(0, dtype=dtype)
     
     def _set_index(self):
         if self.start_idx and self.end_idx:
