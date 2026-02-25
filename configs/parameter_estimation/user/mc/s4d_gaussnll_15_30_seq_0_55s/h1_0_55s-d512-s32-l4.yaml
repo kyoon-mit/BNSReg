@@ -13,7 +13,7 @@ trainer:
     class_path: lightning.pytorch.loggers.wandb.WandbLogger
     init_args:
       project: s4d_gaussnll_snr_15_30_seq_0_55s
-      id: setting1-1
+      id: h1_0_55s-d512-s32-l4
       save_dir: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs
 
   callbacks:
@@ -28,7 +28,7 @@ trainer:
     - class_path: lightning.pytorch.callbacks.EarlyStopping
       init_args:
         monitor: val/loss
-        patience: 60
+        patience: 80
         mode: min
         verbose: true
 
@@ -87,7 +87,7 @@ model:
   class_path: BNSReg.tasks.parameter_estimation.model_s4d_gaussnll.LitModelS4DGaussianNLLLoss
   init_args:
     model_cfg:
-      d_input: 2
+      d_input: 1
       d_output: 2
       d_model: 512
       d_state: 32
@@ -98,7 +98,7 @@ model:
 # Data
 # =========================
 data:
-  class_path: BNSReg.dataloader.regression_loader.LitBNSDataRegression
+  class_path: BNSReg.dataloader.regression_h1_loader.LitBNSDataRegressionH1
   init_args:
     data_cfg:
       # ===== Variables =====
@@ -132,13 +132,13 @@ data:
       rdcc_w0: 0.75           # float
 
       # ===== Batching =====
-      train_batch_size: 8   # int (required)
-      val_batch_size: 8     # int (required)
-      test_batch_size: 8    # int (required)
+      train_batch_size: 16   # int (required)
+      val_batch_size: 16     # int (required)
+      test_batch_size: 16    # int (required)
 
-      num_workers: 8        # int
+      num_workers: 4         # int
       shuffle: true         # bool
-      prefetch_factor: 8   # int
+      prefetch_factor: 4   # int
       persistent_workers: true # bool
 
 # =========================
