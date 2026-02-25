@@ -114,7 +114,8 @@ data:
       val_file: null     # path (required)
 
       injected_data_key: data   # str
-      waveform_data_key: null   # str | null
+      sig_only_data_key: null   # str | null
+      bkg_only_data_key: null   # str | null
 
       # ===== Signal properties =====
       strain_frequency: null  # float | int (Hz)

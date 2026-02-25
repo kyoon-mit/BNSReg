@@ -1,0 +1,165 @@
+# lightning.pytorch==2.6.0
+# =========================
+# Fill in all `null` fields before running
+# Type hints are provided in comments
+
+seed_everything: null  # int (required)
+
+trainer:
+  accelerator: gpu          # str: gpu | cpu | auto
+  strategy: auto            # str: auto | ddp | deepspeed | etc
+  devices: auto             # int | list[int] | "auto"
+  num_nodes: null           # int (required)
+  precision: null           # str | null (e.g. "16-mixed")
+
+  logger:
+    class_path: lightning.pytorch.loggers.wandb.WandbLogger
+    init_args:
+      project: null         # str (required)
+      id: null              # str | null
+      save_dir: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs  # path
+
+  callbacks:
+    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      init_args:
+        monitor: val/loss   # str
+        mode: min           # str: min | max
+        save_top_k: 1       # int
+        save_on_train_epoch_end: true  # bool
+        filename: 'conv_attn_ae_ap_ckpt_{epoch:02d}'  # str
+
+    - class_path: lightning.pytorch.callbacks.EarlyStopping
+      init_args:
+        monitor: val/loss   # str
+        patience: null      # int (required)
+        mode: min           # str
+        verbose: true       # bool
+
+    - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+      init_args:
+        logging_interval: epoch   # str: step | epoch
+
+  # ===== Training control =====
+  fast_dev_run: false        # bool
+  max_epochs: 500            # int
+  min_epochs: 1              # int
+  max_steps: -1              # int
+  min_steps: null            # int | null
+  max_time: null             # str | null
+
+  # ===== Batch limits =====
+  limit_train_batches: null     # float | int | null
+  limit_val_batches: null
+  limit_test_batches: null
+  limit_predict_batches: null
+
+  overfit_batches: 0.0          # float
+  val_check_interval: null      # float | int | null
+  check_val_every_n_epoch: 1    # int
+  num_sanity_val_steps: null    # int | null
+  log_every_n_steps: null       # int | null
+
+  # ===== System =====
+  enable_checkpointing: null    # bool | null
+  enable_progress_bar: true     # bool
+  enable_model_summary: null    # bool | null
+
+  accumulate_grad_batches: 1    # int
+  gradient_clip_val: null       # float | null
+  gradient_clip_algorithm: null # str | null
+
+  deterministic: null           # bool | null
+  benchmark: null               # bool | null
+  inference_mode: true          # bool
+  use_distributed_sampler: true # bool
+
+  profiler: null                # str | null
+  detect_anomaly: false         # bool
+  barebones: false              # bool
+  plugins: null                 # str | list | null
+  sync_batchnorm: false         # bool
+  reload_dataloaders_every_n_epochs: 0  # int
+  default_root_dir: null        # path | null
+  enable_autolog_hparams: true  # bool
+  model_registry: null          # str | null
+
+# =========================
+# Model
+# =========================
+model:
+  class_path: BNSReg.tasks.seq_denoise.conv_ae.LitModelConvAttentionAEAP
+  init_args:
+    model_cfg:
+      seq_length: null  # int (required)
+      n_layers: null    # int (required)
+      base_dim: null    # int (required)
+      num_heads: null   # int (required)
+      dropout: null     # float (0.0–1.0)
+
+# =========================
+# Data
+# =========================
+data:
+  class_path: BNSReg.dataloader.seq_encoder_loader.LitBNSDataSeqEncoder
+  init_args:
+    data_cfg:
+      # ===== Files =====
+      train_file: null   # path (required)
+      test_file: null    # path (required)
+      val_file: null     # path (required)
+
+      injected_data_key: data
+      sig_only_data_key: null
+      bkg_only_data_key: null
+
+      # ===== Signal properties =====
+      strain_frequency: null  # float | int (Hz)
+      downsample_factor: null # int
+      strain_duration: null   # float (sec)
+      coalescence_time: null  # float (sec)
+
+      window_begin: null      # float (sec)
+      window_end: null        # float (sec)
+
+      # ===== Precision =====
+      strain_precision: torch.float32     # torch dtype
+      variables_precision: torch.float32  # torch dtype
+
+      # ===== HDF5 caching =====
+      rdcc_nbytes: 67108864   # int
+      rdcc_nslots: 10007      # int
+      rdcc_w0: 0.75           # float
+
+      # ===== Batching =====
+      train_batch_size: null  # int (required)
+      val_batch_size: null    # int (required)
+      test_batch_size: null   # int (required)
+
+      num_workers: null       # int
+      shuffle: true           # bool
+      prefetch_factor: null   # int
+      persistent_workers: null # bool
+
+# =========================
+# Optimizer
+# =========================
+optimizer:
+  class_path: torch.optim.AdamW
+  init_args:
+    lr: null   # float (required)
+
+# =========================
+# LR Scheduler
+# =========================
+lr_scheduler:
+  class_path: torch.optim.lr_scheduler.CosineAnnealingWarmRestarts
+  init_args:
+    T_0: null     # int (required)
+    T_mult: null  # int
+    eta_min: null # float
+
+# =========================
+# Checkpoint loading
+# =========================
+ckpt_path: null    # path | null
+weights_only: null # bool | null

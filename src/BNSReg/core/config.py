@@ -1,5 +1,5 @@
 from dataclasses import dataclass, fields
-from typing import Self
+from typing import TypeAlias
 import os.path
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -8,7 +8,8 @@ class BNSDatasetConfig():
     test_file: str
     val_file: str
     injected_data_key : str = 'data'
-    waveform_data_key : str = ''
+    sig_only_data_key : str = ''
+    bkg_only_data_key: str = ''
 
     # strain variables
     strain_frequency: int = 2048  # Hz
@@ -107,6 +108,8 @@ class BNSDataModuleRegressionConfig(BNSDataModuleConfig):
         overlap = targets & observed
         if overlap:
             raise ValueError(f'Variables cannot be both target and observed: {overlap}.')
+
+BNSDataModuleClassificationConfig: TypeAlias = BNSDataModuleRegressionConfig
 
 
 @dataclass(frozen=True, slots=True)

@@ -111,7 +111,8 @@ data:
       val_file: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/seq_bns_snr_15_30_uniform_512Hz_150K/val/sig_combined_val.h5
 
       injected_data_key: injected_data
-      waveform_data_key: null
+      sig_only_data_key: null
+      bkg_only_data_key: null
 
       # ===== Signal properties =====
       strain_frequency: 512

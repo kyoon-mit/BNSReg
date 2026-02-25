@@ -1,24 +1,19 @@
-# lightning.pytorch==2.6.0
-# =========================
-# Fill in all `null` fields before running
-# Type hints are provided in comments
-
-seed_everything: null  # int (required)
+seed_everything: 20260225
 
 trainer:
-  accelerator: gpu          # str: gpu | cpu | auto
-  strategy: auto            # str: auto | ddp | deepspeed | etc
-  devices: auto             # int | list[int] | "auto"
-  num_nodes: null           # int (required)
-  precision: null           # str | null (e.g. "16-mixed")
+  accelerator: gpu
+  strategy: auto
+  devices: auto
+  num_nodes: 1
+  precision: null
 
   logger:
     class_path: lightning.pytorch.loggers.wandb.WandbLogger
     init_args:
-      project: null         # str (required)
-      id: null              # str | null
-      save_dir: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs  # path
-
+      project: seq_denoise_snr_15_30_seq_0_55s
+      id: h1_0_55s-n4-b4-h16
+      save_dir: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs
+  
   callbacks:
     - class_path: lightning.pytorch.callbacks.ModelCheckpoint
       init_args:
@@ -26,7 +21,7 @@ trainer:
         mode: min           # str: min | max
         save_top_k: 1       # int
         save_on_train_epoch_end: true  # bool
-        filename: 's4d_gaussnll_ckpt_{epoch:02d}'  # str
+        filename: 'conv_attn_ae_ap_ckpt_{epoch:02d}'  # str
 
     - class_path: lightning.pytorch.callbacks.EarlyStopping
       init_args:
@@ -87,48 +82,43 @@ trainer:
 # Model
 # =========================
 model:
-  class_path: BNSReg.tasks.parameter_estimation.model_s4d_gaussnll.LitModelS4DGaussianNLLLoss
+  class_path: BNSReg.tasks.seq_denoise.conv_ae.LitModelConvAttentionAEAP
   init_args:
     model_cfg:
-      d_input: null     # int (required)
-      d_output: null    # int (required)
-      d_model: null     # int (required)
-      d_state: null     # int (required)
-      n_layers: null    # int (required)
-      dropout: null     # float (0.0–1.0)
+      seq_length: 14080 # int (required)
+      n_layers: 4       # int (required)
+      base_dim: 4       # int (required)
+      num_heads: 16     # int (required)
+      dropout: 0.1      # float (0.0–1.0)
 
 # =========================
 # Data
 # =========================
 data:
-  class_path: BNSReg.dataloader.regression_loader.LitBNSDataRegression
+  class_path: BNSReg.dataloader.seq_encoder_h1_loader.LitBNSDataSeqEncoderH1
   init_args:
     data_cfg:
-      # ===== Variables =====
-      target_variables: ['chirp_mass']   # list[str]
-      observed_variables: ['snr']        # list[str]
-
       # ===== Files =====
-      train_file: null   # path (required)
-      test_file: null    # path (required)
-      val_file: null     # path (required)
+      train_file: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/seq_bns_snr_15_30_uniform_512Hz_150K/train/sig_combined_train.h5
+      test_file: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/seq_bns_snr_15_30_uniform_512Hz_150K/test/sig_combined_test.h5
+      val_file: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/seq_bns_snr_15_30_uniform_512Hz_150K/val/sig_combined_val.h5
 
-      injected_data_key: data   # str
-      sig_only_data_key: null   # str | null
-      bkg_only_data_key: null   # str | null
+      injected_data_key: injected_data
+      sig_only_data_key: sig_only_data
+      bkg_only_data_key: null
 
       # ===== Signal properties =====
-      strain_frequency: null  # float | int (Hz)
-      downsample_factor: null # int
-      strain_duration: null   # float (sec)
-      coalescence_time: null  # float (sec)
+      strain_frequency: 512
+      downsample_factor: 2
+      strain_duration: 64
+      coalescence_time: 63
 
-      window_begin: null      # float (sec)
-      window_end: null        # float (sec)
+      window_begin: 0
+      window_end: 55
 
       # ===== Precision =====
-      strain_precision: torch.float32     # torch dtype
-      variables_precision: torch.float32  # torch dtype
+      strain_precision: torch.float32
+      variables_precision: torch.float32
 
       # ===== HDF5 caching =====
       rdcc_nbytes: 67108864   # int
@@ -136,14 +126,14 @@ data:
       rdcc_w0: 0.75           # float
 
       # ===== Batching =====
-      train_batch_size: null  # int (required)
-      val_batch_size: null    # int (required)
-      test_batch_size: null   # int (required)
+      train_batch_size: 256  # int (required)
+      val_batch_size: 256    # int (required)
+      test_batch_size: 256    # int (required)
 
-      num_workers: null       # int
-      shuffle: true           # bool
-      prefetch_factor: null   # int
-      persistent_workers: null # bool
+      num_workers: 4         # int
+      shuffle: true         # bool
+      prefetch_factor: 4   # int
+      persistent_workers: true # bool
 
 # =========================
 # Optimizer
@@ -151,7 +141,7 @@ data:
 optimizer:
   class_path: torch.optim.AdamW
   init_args:
-    lr: null   # float (required)
+    lr: 5e-4
 
 # =========================
 # LR Scheduler
@@ -159,12 +149,12 @@ optimizer:
 lr_scheduler:
   class_path: torch.optim.lr_scheduler.CosineAnnealingWarmRestarts
   init_args:
-    T_0: null     # int (required)
-    T_mult: null  # int
-    eta_min: null # float
+    T_0: 16     # int (required)
+    T_mult: 1  # int
+    eta_min: 5e-8 # float
 
 # =========================
 # Checkpoint loading
 # =========================
-ckpt_path: null    # path | null
+ckpt_path: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs/seq_denoise_snr_15_30_seq_0_55s/conv_attn_ae_ap_h16/checkpoints/conv_attn_ae_ap_ckpt_epoch=07.ckpt    # path | null
 weights_only: null # bool | null
