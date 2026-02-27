@@ -210,10 +210,15 @@ __marimo__/
 slurm_logs/
 .out
 .err
+*.slurm
 
 # Pytorch checkpoints
 *.pth
 *.ckpt
+
+# Inference files (must add manually)
+*.png
+*.csv
 
 # Wandb internal files and logs
 wandb/

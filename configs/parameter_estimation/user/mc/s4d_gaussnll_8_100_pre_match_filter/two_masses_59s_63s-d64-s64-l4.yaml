@@ -1,19 +1,19 @@
 # lightning.pytorch==2.6.0
 
-seed_everything: 20260216
+seed_everything: 20260223
 
 trainer:
   accelerator: gpu
   strategy: auto
   devices: auto
-  num_nodes: 4
+  num_nodes: 1
   precision: null
 
   logger:
     class_path: lightning.pytorch.loggers.wandb.WandbLogger
     init_args:
-      project: s4d_gaussnll_snr_15_30_seq_0_55s
-      id: h1_0_55s-d512-s32-l4
+      project: s4d_gaussnll_8_100_pre_match_filter
+      id: two_masses_59s_63s-d64-s64-l4-ckpt
       save_dir: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs
 
   callbacks:
@@ -27,7 +27,7 @@ trainer:
 
     - class_path: lightning.pytorch.callbacks.EarlyStopping
       init_args:
-        monitor: val/loss
+        monitor: val/mse/var_0
         patience: 80
         mode: min
         verbose: true
@@ -87,10 +87,10 @@ model:
   class_path: BNSReg.tasks.parameter_estimation.model_s4d_gaussnll.LitModelS4DGaussianNLLLoss
   init_args:
     model_cfg:
-      d_input: 1
-      d_output: 2
-      d_model: 512
-      d_state: 32
+      d_input: 2
+      d_output: 4
+      d_model: 64
+      d_state: 64
       n_layers: 4
       dropout: 0.2
 
@@ -98,11 +98,11 @@ model:
 # Data
 # =========================
 data:
-  class_path: BNSReg.dataloader.regression_h1_loader.LitBNSDataRegressionH1
+  class_path: BNSReg.dataloader.regression_loader.LitBNSDataRegression
   init_args:
     data_cfg:
       # ===== Variables =====
-      target_variables: ['chirp_mass']
+      target_variables: ['chirp_mass', 'mass_ratio']
       observed_variables: []
 
       # ===== Files =====
@@ -120,8 +120,8 @@ data:
       strain_duration: 64
       coalescence_time: 63
 
-      window_begin: 0
-      window_end: 55
+      window_begin: 59
+      window_end: 63
 
       # ===== Precision =====
       strain_precision: torch.float32
@@ -133,13 +133,13 @@ data:
       rdcc_w0: 0.75           # float
 
       # ===== Batching =====
-      train_batch_size: 32   # int (required)
-      val_batch_size: 32     # int (required)
-      test_batch_size: 32    # int (required)
+      train_batch_size: 256   # int (required)
+      val_batch_size: 256     # int (required)
+      test_batch_size: 256    # int (required)
 
-      num_workers: 4         # int
+      num_workers: 4        # int
       shuffle: true         # bool
-      prefetch_factor: 4   # int
+      prefetch_factor: 8   # int
       persistent_workers: true # bool
 
 # =========================
@@ -148,7 +148,7 @@ data:
 optimizer:
   class_path: torch.optim.AdamW
   init_args:
-    lr: 1e-4   # float (required)
+    lr: 5e-4   # float (required)
 
 # =========================
 # LR Scheduler
@@ -156,12 +156,12 @@ optimizer:
 lr_scheduler:
   class_path: torch.optim.lr_scheduler.CosineAnnealingWarmRestarts
   init_args:
-    T_0: 16    # int (required)
+    T_0: 16     # int (required)
     T_mult: 1  # int
     eta_min: 5e-8 # float
 
 # =========================
 # Checkpoint loading
 # =========================
-ckpt_path: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs/s4d_gaussnll_snr_15_30_seq_0_55s/h1_0_55s-d512-s32-l4/checkpoints/s4d_gaussnll_ckpt_epoch=118.ckpt     # path | null
+ckpt_path: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs/s4d_gaussnll_8_100_pre_match_filter/two_masses_59s_63s-d64-s64-l4/checkpoints/s4d_gaussnll_ckpt_epoch=176.ckpt     # path | null
 weights_only: null  # bool | null

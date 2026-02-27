@@ -1,19 +1,19 @@
 # lightning.pytorch==2.6.0
 
-seed_everything: 20260216
+seed_everything: 20260223
 
 trainer:
   accelerator: gpu
   strategy: auto
   devices: auto
-  num_nodes: 4
+  num_nodes: 2
   precision: null
 
   logger:
     class_path: lightning.pytorch.loggers.wandb.WandbLogger
     init_args:
       project: s4d_gaussnll_snr_15_30_seq_0_55s
-      id: h1_0_55s-d512-s32-l4
+      id: h1_0_55s-d64-s256-l16
       save_dir: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs
 
   callbacks:
@@ -89,8 +89,8 @@ model:
     model_cfg:
       d_input: 1
       d_output: 2
-      d_model: 512
-      d_state: 32
+      d_model: 64
+      d_state: 256
       n_layers: 4
       dropout: 0.2
 
@@ -137,9 +137,9 @@ data:
       val_batch_size: 32     # int (required)
       test_batch_size: 32    # int (required)
 
-      num_workers: 4         # int
+      num_workers: 8        # int
       shuffle: true         # bool
-      prefetch_factor: 4   # int
+      prefetch_factor: 8   # int
       persistent_workers: true # bool
 
 # =========================
@@ -148,7 +148,7 @@ data:
 optimizer:
   class_path: torch.optim.AdamW
   init_args:
-    lr: 1e-4   # float (required)
+    lr: 5e-4   # float (required)
 
 # =========================
 # LR Scheduler
@@ -156,12 +156,12 @@ optimizer:
 lr_scheduler:
   class_path: torch.optim.lr_scheduler.CosineAnnealingWarmRestarts
   init_args:
-    T_0: 16    # int (required)
+    T_0: 16     # int (required)
     T_mult: 1  # int
     eta_min: 5e-8 # float
 
 # =========================
 # Checkpoint loading
 # =========================
-ckpt_path: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs/s4d_gaussnll_snr_15_30_seq_0_55s/h1_0_55s-d512-s32-l4/checkpoints/s4d_gaussnll_ckpt_epoch=118.ckpt     # path | null
+ckpt_path: null     # path | null
 weights_only: null  # bool | null

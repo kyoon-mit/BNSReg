@@ -126,9 +126,9 @@ data:
       rdcc_w0: 0.75           # float
 
       # ===== Batching =====
-      train_batch_size: 256  # int (required)
-      val_batch_size: 256    # int (required)
-      test_batch_size: 256    # int (required)
+      train_batch_size: 64    # int (required)
+      val_batch_size: 64      # int (required)
+      test_batch_size: 64     # int (required)
 
       num_workers: 4         # int
       shuffle: true         # bool
