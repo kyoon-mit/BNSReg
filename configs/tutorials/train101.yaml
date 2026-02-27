@@ -1,0 +1,12 @@
+hdf5_path: path/to/file.h5
+target_variables:
+  - 'chirp_mass'
+observed_variables:
+  - 'snr'
+shuffle: true
+random_seed: 1234
+strain_frequency: 2048
+downsample_factor: 1
+strain_begin_seconds: 0
+strain_end_seconds: 64
+coalescence_time: 63

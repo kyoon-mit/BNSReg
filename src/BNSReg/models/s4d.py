@@ -1,31 +1,41 @@
-# Derived from state-spaces/s4
-# https://github.com/state-spaces/s4
+# This file is derived from the S4 repository:
+#   https://github.com/state-spaces/s4/blob/main/models/s4/s4d.py
+#   https://github.com/state-spaces/s4/blob/main/examples.py
 #
 # Copyright (c) 2023 The S4 Authors
-# Licensed under the Apache License, Version 2.0
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at:
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Modifications:
-# - Modified by Kyungseop Yoon (kyoon@mit.edu), 2025-12-30
-#   * Changed import path for DropoutNd to match this repository's layout:
-#     from `src.models.nn` to `functions.dropout`.
-#   * `dropout.py` is also derived from state-spaces/s4 and retains its
-#     original Apache-2.0 licensing and attribution.
+# Modifications (c) 2026 Kyungseop Yoon (kyoon@mit.edu), 2026-01-14
+#   - Adjusted the import path for DropoutNd to match this repository:
+#       from `src.models.nn` -> `BNSReg.functions.dropout`
+#   - `BNSReg.functions.dropout` is itself derived from S4 and retains
+#     Apache-2.0 licensing and attribution.
+#   - Removed unused imports and simplified the code for pedagogical clarity.
+#   - Replaced the local `dropout_fn` alias with direct use of `DropoutNd`
+#     in S4Model.
+#   - Added arguments to S4Model and passed it to S4D initialization
+#     (without further modification to the upstream kernel logic).
+#   - Replaced use of Python complex literals (e.g. `1j`) with
+#     `torch.complex(...)` to ensure compatibility with `torch.compile`
 
 """Minimal version of S4D with extra options and features stripped out, for pedagogical purposes."""
 
 import math
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from einops import rearrange, repeat
+from einops import repeat
 
-from functions.dropout import DropoutNd
+from BNSReg.functions.dropout import DropoutNd
 
 class S4DKernel(nn.Module):
     """Generate convolution kernel from diagonal SSM parameters."""
 
     def __init__(self, d_model, N=64, dt_min=0.001, dt_max=0.1, lr=None):
         super().__init__()
+        
         # Generate dt
         H = d_model
         log_dt = torch.rand(H) * (
@@ -49,7 +59,10 @@ class S4DKernel(nn.Module):
         # Materialize parameters
         dt = torch.exp(self.log_dt) # (H)
         C = torch.view_as_complex(self.C) # (H N)
-        A = -torch.exp(self.log_A_real) + 1j * self.A_imag # (H N)
+        # ORIGINAL CODE
+        # A = -torch.exp(self.log_A_real) + 1j * self.A_imag # (H N)
+        # MODIFIED CODE FOR torch.compile SAFETY
+        A = torch.complex(-torch.exp(self.log_A_real), self.A_imag)
 
         # Vandermonde multiplication
         dtA = A * dt.unsqueeze(-1)  # (H N)
@@ -117,3 +130,77 @@ class S4D(nn.Module):
         y = self.output_linear(y)
         if not self.transposed: y = y.transpose(-1, -2)
         return y, None # Return a dummy state to satisfy this repo's interface, but this can be modified
+
+class S4Model(nn.Module):
+    def __init__(
+        self,
+        d_input,
+        d_output=10,
+        d_model=256,
+        d_state=64,
+        n_layers=4,
+        dropout=0.2,
+        prenorm=False,
+        lr=None,
+        dt_min=0.001,
+        dt_max=0.1
+    ):
+        super().__init__()
+
+        self.prenorm = prenorm
+
+        # Linear encoder (d_input = 1 for grayscale and 3 for RGB)
+        self.encoder = nn.Linear(d_input, d_model)
+
+        # Stack S4 layers as residual blocks
+        self.s4_layers = nn.ModuleList()
+        self.norms = nn.ModuleList()
+        self.dropouts = nn.ModuleList()
+        for _ in range(n_layers):
+            self.s4_layers.append(
+                S4D(d_model, d_state=d_state, dropout=dropout, transposed=True,
+                    dt_min=dt_min, dt_max=dt_max, lr=lr)
+            )
+            self.norms.append(nn.LayerNorm(d_model))
+            self.dropouts.append(DropoutNd(dropout))
+
+        # Linear decoder
+        self.decoder = nn.Linear(d_model, d_output)
+
+    def forward(self, x):
+        """
+        Input x is shape (B, L, d_input)
+        """
+        x = self.encoder(x)  # (B, L, d_input) -> (B, L, d_model)
+        x = x.transpose(-1, -2)  # (B, L, d_model) -> (B, d_model, L)
+
+        for layer, norm, dropout in zip(self.s4_layers, self.norms, self.dropouts):
+            # Each iteration of this loop will map (B, d_model, L) -> (B, d_model, L)
+
+            z = x
+            if self.prenorm:
+                # Prenorm
+                z = norm(z.transpose(-1, -2)).transpose(-1, -2)
+
+            # Apply S4 block: we ignore the state input and output
+            z, _ = layer(z)
+
+            # Dropout on the output of the S4 block
+            z = dropout(z)
+
+            # Residual connection
+            x = z + x
+
+            if not self.prenorm:
+                # Postnorm
+                x = norm(x.transpose(-1, -2)).transpose(-1, -2)
+
+        x = x.transpose(-1, -2)
+
+        # Pooling: average pooling over the sequence length
+        x = x.mean(dim=1)
+
+        # Decode the outputs
+        x = self.decoder(x)  # (B, d_model) -> (B, d_output)
+
+        return x
