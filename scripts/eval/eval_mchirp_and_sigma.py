@@ -59,17 +59,17 @@ def main():
 
             outputs = model(X)
             pred_mean = outputs[:, :1]
-            pred_var = model.var_activation(outputs[:, 1:])
+            pred_sigma = torch.sqrt(model.var_activation(outputs[:, 1:]))
 
             # Move back to CPU before writing
             pred_mean = pred_mean.detach().cpu()
-            pred_var = pred_var.detach().cpu()
+            pred_sigma = pred_sigma.detach().cpu()
             y = y.detach().cpu()
 
             B = y.size(0)
             out[i:i+B, 0] = y.squeeze(1)
             out[i:i+B, 1] = pred_mean.squeeze(1)
-            out[i:i+B, 2] = pred_var.squeeze(1)
+            out[i:i+B, 2] = pred_sigma.squeeze(1)
 
             i += B
 
