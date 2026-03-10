@@ -36,7 +36,7 @@ class LitModelS4DGaussianNLLLoss(LitBaseTask):
         X_sequence = X_sequence.transpose(2, 1)  # (B, d_input, L) -> (B, L, d_input)
         outputs = self(X_sequence) # (B, d_output)
         mean = outputs[:,:self.n_vars]
-        var = self.var_activation(outputs[:,self.n_vars:])
+        var = self.var_activation(outputs[:,self.n_vars:]) # (B, d_output)
         # TODO: modularize this as a callback in cfg
         mse_metric = torch.nn.MSELoss(reduction='none')
         y_indiv_mse = mse_metric(mean, y_target).T.mean(dim=1) # (d_output,)
@@ -48,7 +48,7 @@ class LitModelS4DGaussianNLLLoss(LitBaseTask):
         self.log('train/loss', loss, on_step=False, on_epoch=True, prog_bar=True)
         for i in range(len(y_indiv_mse)):
             self.log(f'train/mse/var_{i}', y_indiv_mse[i], on_step=False, on_epoch=True)
-            self.log(f'train/sigma_{i}', torch.sqrt(var[i]), on_step=False, on_epoch=True)
+            self.log(f'train/sigma_{i}', torch.sqrt(var[:,i].mean(dim=0)), on_step=False, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -56,7 +56,7 @@ class LitModelS4DGaussianNLLLoss(LitBaseTask):
         self.log('val/loss', loss, on_step=False, on_epoch=True, prog_bar=True)
         for i in range(len(y_indiv_mse)):
             self.log(f'val/mse/var_{i}', y_indiv_mse[i], on_step=False, on_epoch=True)
-            self.log(f'val/sigma_{i}', torch.sqrt(var[i]), on_step=False, on_epoch=True)
+            self.log(f'val/sigma_{i}', torch.sqrt(var[i].mean(dim=0)), on_step=False, on_epoch=True)
         return loss
 
     def test_step(self, batch, batch_idx):
