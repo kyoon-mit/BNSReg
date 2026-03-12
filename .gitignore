@@ -229,3 +229,5 @@ artifacts/
 # Lightning logs
 lightning_logs/
 .lightning_logs/
+
+user/
