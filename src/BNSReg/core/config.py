@@ -80,6 +80,10 @@ class BNSDataModuleRegressionConfig(BNSDataModuleConfig):
     target_variables: tuple[str, ...]
     observed_variables: tuple[str, ...]
 
+    # normalization: min/max computed from training file at dataset init
+    normalize_variables: bool = False
+    normalize_range: tuple[float, float] = (-1.0, 1.0)  # [lo, hi] output range
+
     def __post_init__(self) -> None:
         # Check if files exist
         for stage, path in (
@@ -89,7 +93,12 @@ class BNSDataModuleRegressionConfig(BNSDataModuleConfig):
         ):
             if not os.path.exists(path):
                 raise FileNotFoundError(f'{stage} file {path} does not exist.')
-        
+
+        # Normalization checks
+        lo, hi = self.normalize_range
+        if lo >= hi:
+            raise ValueError(f'normalize_range must satisfy lo < hi, got {self.normalize_range}.')
+
         # Check variables
         valid_keys = {
             'chi1', 'chi2', 'chirp_mass', 'dec', 'distance', 'inclination',
@@ -104,7 +113,7 @@ class BNSDataModuleRegressionConfig(BNSDataModuleConfig):
             raise ValueError(
                 f'Invalid target_variables: {invalid}. Valid options are {valid_keys}.'
             )
-        
+
         overlap = targets & observed
         if overlap:
             raise ValueError(f'Variables cannot be both target and observed: {overlap}.')

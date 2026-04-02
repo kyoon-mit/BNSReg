@@ -108,6 +108,10 @@ data:
       target_variables: ['chirp_mass']   # list[str]
       observed_variables: ['snr']        # list[str]
 
+      # ===== Normalization pre-processing =====
+      normalize_variables: false         # bool
+      normalize_range: [-1.0, 1.0]       # tuple[float, float]
+
       # ===== Files =====
       train_file: null   # path (required)
       test_file: null    # path (required)
