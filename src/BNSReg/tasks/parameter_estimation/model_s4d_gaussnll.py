@@ -3,8 +3,7 @@ import torch
 from BNSReg.tasks.base_task import LitBaseTask
 from BNSReg.models.s4d import S4Model
 from BNSReg.core.config import S4DModelConfig
-
-import pandas as pd
+from BNSReg.callbacks.log_metric import log_GaussianNLLLoss
 
 class LitModelS4DGaussianNLLLoss(LitBaseTask):
     def __init__(self, model_cfg: S4DModelConfig):
@@ -18,8 +17,6 @@ class LitModelS4DGaussianNLLLoss(LitBaseTask):
         self.var_activation = torch.nn.Softplus() # Activation function for the variance for positivity enforcement
         self.model = None
         self.configure_model()
-
-        self.csv_fname = 'model_s4d_gaussnll_test.csv'
 
     def configure_model(self):
         if self.model is not None:
@@ -44,32 +41,26 @@ class LitModelS4DGaussianNLLLoss(LitBaseTask):
 
     def training_step(self, batch, batch_idx):
         loss, y_indiv_mse, var = self.compute_loss(batch)
-        # TODO: modularize as callback
-        self.log('train/loss', loss, on_step=False, on_epoch=True, prog_bar=True)
-        for i in range(len(y_indiv_mse)):
-            self.log(f'train/mse/var_{i}', y_indiv_mse[i], on_step=False, on_epoch=True)
-            self.log(f'train/sigma_{i}', torch.sqrt(var[:,i].mean(dim=0)), on_step=False, on_epoch=True)
+        log_GaussianNLLLoss(self, 'train', loss, y_indiv_mse, var)
         return loss
 
     def validation_step(self, batch, batch_idx):
         loss, y_indiv_mse, var = self.compute_loss(batch)
-        self.log('val/loss', loss, on_step=False, on_epoch=True, prog_bar=True)
-        for i in range(len(y_indiv_mse)):
-            self.log(f'val/mse/var_{i}', y_indiv_mse[i], on_step=False, on_epoch=True)
-            self.log(f'val/sigma_{i}', torch.sqrt(var[i].mean(dim=0)), on_step=False, on_epoch=True)
+        log_GaussianNLLLoss(self, 'val', loss, y_indiv_mse, var)
         return loss
 
     def test_step(self, batch, batch_idx):
         X_sequence, y_target, z_observed = batch
-        outputs = self(X_sequence) # (B, d_output)
-        # TODO: modularize as callback
-        df = pd.DataFrame(outputs)
-        try:
-            df.to_csv(self.csv_fname, mode='a', index=False, header=False)
-            print(f'Appended data using pandas to {self.csv_fname}.')
-        except FileNotFoundError:
-            print(f'File not found, creating a new file in {self.csv_fname}.')
-            df.to_csv(self.csv_fname, mode='w', index=False, header=True)
+        X_sequence = X_sequence.transpose(2, 1)  # (B, d_input, L) -> (B, L, d_input)
+        outputs = self(X_sequence)  # (B, d_output)
+        mean  = outputs[:, :self.n_vars]
+        var   = self.var_activation(outputs[:, self.n_vars:])
+        sigma = torch.sqrt(var)
+        return {
+            'y_true':  y_target.detach().cpu(),
+            'y_pred':  mean.detach().cpu(),
+            'y_sigma': sigma.detach().cpu(),
+        }
 
 
 
