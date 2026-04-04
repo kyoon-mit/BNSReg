@@ -33,11 +33,15 @@ for VAR in "${VARS[@]}"; do
     continue
   fi
 
+  # Construct full sweep path required by wandb agent
+  PROJECT=$(grep '^project:' "$SWEEP_FILE" | awk '{print $2}')
+  FULL_SWEEP_ID="${ENTITY}/${PROJECT}/${SWEEP_ID}"
+
   # Submit SLURM worker
-  SBATCH_OUTPUT=$(sbatch --export=SWEEP_ID="$SWEEP_ID",VAR="$VAR" "$SLURM_SCRIPT")
+  SBATCH_OUTPUT=$(sbatch --export=SWEEP_ID="$FULL_SWEEP_ID",VAR="$VAR" "$SLURM_SCRIPT")
   JOB_ID=$(echo "$SBATCH_OUTPUT" | grep -oP '\d+')
 
-  echo "VAR=${VAR}  SWEEP_ID=${SWEEP_ID}  SLURM_JOB=${JOB_ID}" | tee -a "$LOG_FILE"
+  echo "VAR=${VAR}  SWEEP_ID=${FULL_SWEEP_ID}  SLURM_JOB=${JOB_ID}" | tee -a "$LOG_FILE"
 done
 
 echo "=== done. check: squeue -u $(whoami) ===" | tee -a "$LOG_FILE"
