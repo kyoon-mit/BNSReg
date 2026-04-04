@@ -8,7 +8,8 @@ OTHER_ARGS=()
 
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --time_window) TIME_WINDOW="$2"; shift 2;;
+    --time_window=*) TIME_WINDOW="${1#--time_window=}"; shift;;
+    --time_window)   TIME_WINDOW="$2"; shift 2;;
     *) OTHER_ARGS+=("$1"); shift;;
   esac
 done
