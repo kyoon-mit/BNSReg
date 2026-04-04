@@ -1,4 +1,5 @@
 program: bash
+project: ai4gw@cern__s4d_gaussnll_sig_only
 method: grid
 parameters:
   model.init_args.model_cfg.d_model:
