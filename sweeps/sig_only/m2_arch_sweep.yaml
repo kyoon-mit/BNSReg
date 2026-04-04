@@ -1,5 +1,6 @@
 program: bash
 project: ai4gw@cern__s4d_gaussnll_sig_only
+name: sig_only_m2_arch_sweep
 method: grid
 parameters:
   model.init_args.model_cfg.d_model:
