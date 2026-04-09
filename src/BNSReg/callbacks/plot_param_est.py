@@ -143,9 +143,10 @@ class PlotParamEstCallback(Callback):
         save_dir: Directory where CSV and PNG figures are saved.
     """
 
-    def __init__(self, save_dir: str | Path):
+    def __init__(self, save_dir: str | Path = ''):
         super().__init__()
-        self.save_dir = Path(save_dir)
+        self._save_dir_override = Path(save_dir) if save_dir else None
+        self.save_dir = self._save_dir_override or Path('.')
 
         # Populated in on_test_start from trainer.datamodule
         self.target_variables: list[str] = []
@@ -163,6 +164,13 @@ class PlotParamEstCallback(Callback):
         self._y_true.clear()
         self._y_pred.clear()
         self._y_sigma.clear()
+
+        # Resolve save_dir: explicit override > {logger.save_dir}/{run_name} > fallback
+        if self._save_dir_override:
+            self.save_dir = self._save_dir_override
+        elif hasattr(trainer.logger, 'save_dir') and hasattr(trainer.logger, 'name'):
+            self.save_dir = Path(trainer.logger.save_dir) / trainer.logger.name
+        # else keep the placeholder '.' set in __init__
 
         # Read variable config from the datamodule
         cfg = trainer.datamodule.cfg

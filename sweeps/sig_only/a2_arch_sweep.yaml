@@ -17,4 +17,6 @@ command:
   - scripts/sweep_runner.sh
   - --config
   - "/n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/configs/parameter_estimation/ai4gw@cern/s4d_gaussnll_sig_only/a2_0_4s_d32_s32_l4.yaml"
+  - --var
+  - a2
   - ${args}
