@@ -1,4 +1,9 @@
+import warnings
+import torch
 from lightning.pytorch.cli import LightningCLI
+
+torch.set_float32_matmul_precision('high')
+warnings.filterwarnings('ignore', message='The `srun` command is available on your system but is not used.')
 
 
 class FitTestCLI(LightningCLI):

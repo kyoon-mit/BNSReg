@@ -1,3 +1,4 @@
+import os
 import h5py
 from typing import Literal
 
@@ -13,6 +14,7 @@ class BNSBaseDataset(Dataset):
         self.cfg = cfg
         self.stage = stage
         self._f = None
+        self._f_pid = None  # PID that opened self._f; reopen on fork
         self.start_idx = None
         self.end_idx = None
 
@@ -33,8 +35,20 @@ class BNSBaseDataset(Dataset):
             f'strain_duration ({self.cfg.strain_duration}) * strain_frequency ({self.cfg.strain_frequency}) provided in the configuration.')
     
     def _get_file(self):
-        if self._f is None:
-            self._f = h5py.File(self.file_path, 'r')
+        pid = os.getpid()
+        if self._f is None or self._f_pid != pid:
+            if self._f is not None:
+                try:
+                    self._f.close()
+                except Exception:
+                    pass
+            self._f = h5py.File(
+                self.file_path, 'r',
+                rdcc_nbytes=self.cfg.rdcc_nbytes,
+                rdcc_nslots=self.cfg.rdcc_nslots,
+                rdcc_w0=self.cfg.rdcc_w0,
+            )
+            self._f_pid = pid
         return self._f
     
     def _compute_var_minmax(self, file_path: str, keys: tuple[str, ...]) -> dict[str, tuple[float, float]]:
