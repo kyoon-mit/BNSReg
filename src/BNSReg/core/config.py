@@ -145,6 +145,34 @@ class S4DModelConfig(BNSModelConfig):
             raise ValueError('dt_min must be < dt_max')
 
 @dataclass(frozen=True, slots=True)
+class S4DDenoisedRegressionConfig(S4DModelConfig):
+    """S4DModelConfig extended with paths to a frozen denoiser checkpoint.
+
+    denoiser_ckpt and denoiser_cfg are excluded from model_kwargs() so they
+    are not forwarded to the S4Model constructor.
+    """
+    denoiser_ckpt: str | None = None   # path to LitModelS4DAE .ckpt file
+    denoiser_cfg:  str | None = None   # path to the denoiser's config YAML
+
+    def model_kwargs(self) -> dict[str, object]:
+        exclude = {'denoiser_ckpt', 'denoiser_cfg'}
+        return {f.name: getattr(self, f.name) for f in fields(self) if f.name not in exclude}
+
+@dataclass(frozen=True, slots=True)
+class LinOSSModelConfig(BNSModelConfig):
+    d_input: int
+    d_output: int
+    d_model: int
+    ssm_size: int
+    n_layers: int
+    dropout: float
+    discretization: str = 'IM'
+
+    def __post_init__(self) -> None:
+        if self.discretization not in ('IM', 'IMEX'):
+            raise ValueError(f"discretization must be 'IM' or 'IMEX', got '{self.discretization}'")
+
+@dataclass(frozen=True, slots=True)
 class ConvAEModelConfig(BNSModelConfig):
     n_layers: int
     latent_channels: int

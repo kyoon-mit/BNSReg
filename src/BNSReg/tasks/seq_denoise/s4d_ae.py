@@ -2,9 +2,9 @@ import torch
 from torch import optim
 
 from BNSReg.tasks.base_task import LitBaseTask
-from BNSReg.models.s4d import S4Model
+from BNSReg.models.s4d_seq2seq import S4ModelSeq2Seq
 from BNSReg.core.config import S4DModelConfig
-    
+
 class LitModelS4DAE(LitBaseTask):
     def __init__(self, cfg: S4DModelConfig):
         super().__init__()
@@ -16,28 +16,36 @@ class LitModelS4DAE(LitBaseTask):
     def configure_model(self):
         if self.model is not None:
             return
-        else:
-            self.model = S4Model(**self.cfg.model_kwargs())
-            self.model = torch.compile(self.model)
+        self.model = S4ModelSeq2Seq(**self.cfg.model_kwargs())
+        self.model = torch.compile(self.model)
 
     def forward(self, x):
         return self.model(x)
 
-    def compute_loss(self, batch):
-        input, target = batch   # (B, n_ifos, L), (B, n_ifos, L)
-        
-        input = input.transpose(1, 2) # S4Model expected to see (B, L, d_input)
-        h1_injected = input[:, :, 0].unsqueeze(-1) # (B, L) -> (B, L, 1)
-        l1_injected = input[:, :, 1].unsqueeze(-1)
-        h1_sig_only = target[:, 0, :] # (B, L) = (B, d_output) set in config
-        l1_sig_only = target[:, 1, :]
+    def _step(self, batch, stage: str):
+        input, target = batch        # (B, n_ifos, L)
+        x = input.transpose(1, 2)   # (B, L, d_input)
+        t = target.transpose(1, 2)  # (B, L, d_output)
+        out = self(x)               # (B, L, d_output)
 
-        h1_out = self(h1_injected) # (B, d_output)
-        l1_out = self(l1_injected)
+        loss = self.criterion(out, t)
+        self.log(f'{stage}/loss', loss, on_step=False, on_epoch=True, prog_bar=True)
 
-        loss_h1 = self.criterion(h1_out, h1_sig_only)
-        loss_l1 = self.criterion(l1_out, l1_sig_only)
-        return (loss_h1 + loss_l1) / 2
+        n_ifos = out.shape[-1]
+        for i in range(n_ifos):
+            mse_i = self.criterion(out[..., i], t[..., i])
+            self.log(f'{stage}/mse/ifo_{i}', mse_i, on_step=False, on_epoch=True)
+
+        return loss
+
+    def training_step(self, batch, batch_idx):
+        return self._step(batch, 'train')
+
+    def validation_step(self, batch, batch_idx):
+        return self._step(batch, 'val')
+
+    def test_step(self, batch, batch_idx):
+        return self._step(batch, 'test')
 
     def configure_optimizers(self):
         optimizer = optim.AdamW(self.parameters(), lr=1e-3)
