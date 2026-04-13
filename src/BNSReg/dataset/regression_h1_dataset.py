@@ -12,8 +12,7 @@ class BNSDatasetRegressionH1(BNSBaseDataset):
     def __getitem__(self, idx):
         f = self._get_file()
 
-        seq = f[self.cfg.injected_data_key][idx, 0:1, self.start_idx:self.end_idx:self.cfg.downsample_factor]
-
+        seq = self._read_strain(f, self.cfg.injected_data_key, idx, slice(0, 1))
         X_sequence = torch.as_tensor(seq, dtype=str_to_dtype(self.cfg.strain_precision))
         y_target = self._get_vars(f, self.cfg.target_variables, idx, dtype=str_to_dtype(self.cfg.variables_precision))
         z_observed = self._get_vars(f, self.cfg.observed_variables, idx, dtype=str_to_dtype(self.cfg.variables_precision))

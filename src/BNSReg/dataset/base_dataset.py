@@ -2,7 +2,9 @@ import os
 import h5py
 from typing import Literal
 
+import numpy as np
 import torch
+from gwpy.timeseries import TimeSeries
 from torch.utils.data import Dataset
 
 from BNSReg.core.config import BNSDatasetConfig
@@ -82,6 +84,39 @@ class BNSBaseDataset(Dataset):
                             f'start_idx = window_begin ({self.cfg.window_begin}) * strain_frequency ({self.cfg.strain_frequency})\n'\
                             f'end_idx = window_end ({self.cfg.window_end}) * strain_frequency ({self.cfg.strain_frequency})\n')
         return
+
+    def _read_strain(self, f: h5py.File, key: str, idx: int,
+                     channel_slc: slice = slice(None)) -> np.ndarray:
+        """Read a strain slice and apply bandpass if cfg.apply_bandpass is set."""
+        data = f[key][idx, channel_slc, self.start_idx:self.end_idx:self.cfg.downsample_factor]
+        if self.cfg.apply_bandpass:
+            data = self._apply_bandpass(data)
+        return data
+
+    def _apply_bandpass(self, data: np.ndarray) -> np.ndarray:
+        """Bandpass/lowpass/highpass each channel via gwpy.TimeSeries.
+
+        Filter type is chosen automatically from cfg:
+          - bandpass_low <= 0          → lowpass  at bandpass_high
+          - bandpass_high >= Nyquist   → highpass at bandpass_low
+          - otherwise                  → bandpass between the two
+        """
+        fs = self.cfg.strain_frequency / self.cfg.downsample_factor
+        nyq = fs / 2.0
+        low = self.cfg.bandpass_low
+        high = self.cfg.bandpass_high
+
+        out = np.empty_like(data, dtype=np.float64)
+        for i in range(data.shape[0]):
+            ts = TimeSeries(data[i].astype(np.float64), sample_rate=fs)
+            if low <= 0:
+                ts = ts.lowpass(high)
+            elif high >= nyq / 1.5:  # gwpy fstop = min(fhigh*1.5, nyq); avoid clipping to nyq
+                ts = ts.highpass(low)
+            else:
+                ts = ts.bandpass(low, high)
+            out[i] = ts.value
+        return out
 
     def __len__(self):
         return self.n_samples

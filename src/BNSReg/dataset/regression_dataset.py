@@ -26,7 +26,7 @@ class BNSDatasetRegression(BNSBaseDataset):
         f = self._get_file()
         dtype = str_to_dtype(self.cfg.variables_precision)
 
-        seq = f[self.cfg.injected_data_key][idx, :, self.start_idx:self.end_idx:self.cfg.downsample_factor]
+        seq = self._read_strain(f, self.cfg.injected_data_key, idx)
         X_sequence = torch.as_tensor(seq, dtype=str_to_dtype(self.cfg.strain_precision))
         y_target = self._get_vars(f, self.cfg.target_variables, idx, dtype=dtype)
         z_observed = self._get_vars(f, self.cfg.observed_variables, idx, dtype=dtype)

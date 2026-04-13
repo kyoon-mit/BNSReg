@@ -12,8 +12,8 @@ class BNSDatasetClassificationH1(BNSBaseDataset):
     def __getitem__(self, idx):
         f = self._get_file()
 
-        injected_seq = f[self.cfg.injected_data_key][idx, 0:1, self.start_idx:self.end_idx:self.cfg.downsample_factor]
-        bkg_only_seq = f[self.cfg.bkg_only_data_key][idx, 0:1, self.start_idx:self.end_idx:self.cfg.downsample_factor]
+        injected_seq = self._read_strain(f, self.cfg.injected_data_key, idx, slice(0, 1))
+        bkg_only_seq = self._read_strain(f, self.cfg.bkg_only_data_key, idx, slice(0, 1))
 
         injected_seq = torch.as_tensor(injected_seq, dtype=str_to_dtype(self.cfg.strain_precision))
         bkg_only_seq = torch.as_tensor(bkg_only_seq, dtype=str_to_dtype(self.cfg.strain_precision))

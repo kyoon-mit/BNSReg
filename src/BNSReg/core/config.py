@@ -19,6 +19,11 @@ class BNSDatasetConfig():
     window_begin: float = 0.0       # sec
     window_end: float = 55.0        # sec
 
+    # bandpass filter
+    apply_bandpass: bool = False
+    bandpass_low: float = 0.0     # Hz; 0 → lowpass only
+    bandpass_high: float = 3e4    # Hz; >= Nyquist → highpass only
+
     # I/O variables
     strain_precision: str = 'torch.float32'
     variables_precision: str = 'torch.float32'

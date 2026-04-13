@@ -37,17 +37,17 @@ class LitModelS4DGaussianNLLLoss(LitBaseTask):
         # TODO: modularize this as a callback in cfg
         mse_metric = torch.nn.MSELoss(reduction='none')
         y_indiv_mse = mse_metric(mean, y_target).T.mean(dim=1) # (d_output,)
-        return self.criterion(mean, y_target, var), y_indiv_mse, var
+        return self.criterion(mean, y_target, var), y_indiv_mse, var, mean, y_target
 
     def training_step(self, batch, batch_idx):
-        loss, y_indiv_mse, var = self.compute_loss(batch)
+        loss, y_indiv_mse, var, mean, y_target = self.compute_loss(batch)
         log_GaussianNLLLoss(self, 'train', loss, y_indiv_mse, var)
-        return loss
+        return {'loss': loss, 'mean': mean.detach(), 'y_target': y_target.detach()}
 
     def validation_step(self, batch, batch_idx):
-        loss, y_indiv_mse, var = self.compute_loss(batch)
+        loss, y_indiv_mse, var, mean, y_target = self.compute_loss(batch)
         log_GaussianNLLLoss(self, 'val', loss, y_indiv_mse, var)
-        return loss
+        return {'loss': loss, 'mean': mean.detach(), 'y_target': y_target.detach()}
 
     def test_step(self, batch, batch_idx):
         X_sequence, y_target, z_observed = batch
