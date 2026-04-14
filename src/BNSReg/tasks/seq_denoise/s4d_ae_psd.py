@@ -57,6 +57,8 @@ class LitModelS4DAE_PSD(LitBaseTask):
         t = target.transpose(1, 2)  # (B, L, d_output)
         out = self(x)               # (B, L, d_output)
 
+        ### AD HOC: target multiplied by a factor 100
+        t *= 100
         loss = self._psd_mse(out, t)
         self.log(f'{stage}/psd_loss', loss, on_step=False, on_epoch=True, prog_bar=True)
 

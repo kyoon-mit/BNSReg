@@ -69,10 +69,11 @@ class S4ModelSeq2Seq(nn.Module):
             self.dropouts.append(DropoutNd(dropout))
         self.decoder = nn.Linear(d_model, d_output)
 
-    def forward(self, x):
+    def forward(self, x, return_features: bool = False):
         """
         Input x:  (B, L, d_input)
         Returns:  (B, L, d_output)
+                  or ((B, L, d_output), (B, L, d_model)) when return_features=True
         """
         x = self.encoder(x)      # (B, L, d_model)
         x = x.transpose(-1, -2)  # (B, d_model, L)
@@ -87,6 +88,8 @@ class S4ModelSeq2Seq(nn.Module):
             if not self.prenorm:
                 x = norm(x.transpose(-1, -2)).transpose(-1, -2)
 
-        x = x.transpose(-1, -2)  # (B, L, d_model)
-        x = self.decoder(x)      # (B, L, d_output)
-        return x
+        features = x.transpose(-1, -2)   # (B, L, d_model)
+        out      = self.decoder(features) # (B, L, d_output)
+        if return_features:
+            return out, features
+        return out
