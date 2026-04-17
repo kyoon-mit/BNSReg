@@ -126,6 +126,60 @@ class BNSDataModuleRegressionConfig(BNSDataModuleConfig):
 BNSDataModuleClassificationConfig: TypeAlias = BNSDataModuleRegressionConfig
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class BNSDataModuleCurriculumConfig(BNSDataModuleRegressionConfig):
+    """Curriculum training with per-stage mixture weights over multiple train files.
+
+    train_files[i] is one SNR bin (e.g. high → low).
+    stage_schedule[i] is the epoch at which stage i begins; must start with 0.
+    stage_weights[i] is the sampling probability over train_files for stage i;
+      weights need not sum to 1 (they are normalised at runtime).
+      Set a weight to 0 for hard exclusion (equivalent to Option A switching).
+
+    Example — hard switch across 3 bins:
+      stage_weights = [(1,0,0), (0,1,0), (0,0,1)]
+
+    Example — smooth mixing:
+      stage_weights = [(0.8,0.15,0.05), (0.4,0.4,0.2), (0.2,0.4,0.4)]
+
+    train_file is unused; it is set automatically to train_files[0] so the
+    parent validation logic still works.
+    """
+    train_files: tuple[str, ...]
+    stage_schedule: tuple[int, ...]
+    stage_weights: tuple[tuple[float, ...], ...]
+    train_file: str = ""  # overridden in __post_init__; do not set manually
+
+    def __post_init__(self) -> None:
+        n = len(self.train_files)
+        if n == 0:
+            raise ValueError("train_files must not be empty.")
+        if len(self.stage_schedule) != len(self.stage_weights):
+            raise ValueError(
+                "stage_schedule and stage_weights must have the same length."
+            )
+        if self.stage_schedule[0] != 0:
+            raise ValueError("stage_schedule[0] must be 0.")
+        for i in range(1, len(self.stage_schedule)):
+            if self.stage_schedule[i] <= self.stage_schedule[i - 1]:
+                raise ValueError("stage_schedule must be strictly increasing.")
+        for i, w in enumerate(self.stage_weights):
+            if len(w) != n:
+                raise ValueError(
+                    f"stage_weights[{i}] has length {len(w)}, expected {n} "
+                    f"(must match len(train_files))."
+                )
+            if any(v < 0 for v in w):
+                raise ValueError(f"stage_weights[{i}] contains negative values.")
+            if sum(w) <= 0:
+                raise ValueError(f"stage_weights[{i}] must have at least one positive value.")
+        for path in self.train_files:
+            if not os.path.exists(path):
+                raise FileNotFoundError(f"Train file not found: {path}")
+        object.__setattr__(self, "train_file", self.train_files[0])
+        super().__post_init__()
+
+
 @dataclass(frozen=True, slots=True)
 class BNSModelConfig():
     def model_kwargs(self) -> dict[str, object]:
