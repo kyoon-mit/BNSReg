@@ -88,7 +88,11 @@ class BNSBaseDataset(Dataset):
     def _read_strain(self, f: h5py.File, key: str, idx: int,
                      channel_slc: slice = slice(None)) -> np.ndarray:
         """Read a strain slice and apply bandpass if cfg.apply_bandpass is set."""
-        data = f[key][idx, channel_slc, self.start_idx:self.end_idx:self.cfg.downsample_factor]
+        data = f[key][idx, channel_slc, self.start_idx:self.end_idx]
+        if self.cfg.downsample_factor > 1:
+            fs, new_fs = self.cfg.strain_frequency, self.cfg.strain_frequency // self.cfg.downsample_factor
+            data = np.array([TimeSeries(data[c], sample_rate=fs).resample(new_fs).value
+                             for c in range(data.shape[0])])
         if self.cfg.apply_bandpass:
             data = self._apply_bandpass(data)
         return data
