@@ -1,0 +1,18 @@
+program: bash
+project: ai4gw@cern__s4d_mse_snr_10
+name: seq_denoise_arch_sweep
+method: grid
+parameters:
+  model.init_args.cfg.d_model:
+    values: [16, 32, 64]
+  model.init_args.cfg.d_state:
+    values: [16, 32]
+  model.init_args.cfg.n_layers:
+    values: [2, 4]
+command:
+  - ${env}
+  - ${program}
+  - /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/configs/seq_denoise/ai4gw@cern/s4d_mse_snr_10/sweep_runner.sh
+  - --config
+  - /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/configs/seq_denoise/ai4gw@cern/s4d_mse_snr_10/seq_denoise_0-4s_d32_s32_l4.yaml
+  - ${args}

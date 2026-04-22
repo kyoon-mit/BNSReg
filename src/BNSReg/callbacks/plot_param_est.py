@@ -149,14 +149,16 @@ class PlotParamEstCallback(Callback):
         self.save_dir = self._save_dir_override or Path('.')
 
         # Populated in on_test_start from trainer.datamodule
-        self.target_variables: list[str] = []
+        self.target_variables:   list[str] = []
+        self.observed_variables: list[str] = []
         self.normalize_variables: bool = False
         self.var_scales: dict[str, tuple[float, float]] = {}
         self.normalize_range: tuple[float, float] = (-1.0, 1.0)
 
-        self._y_true:  list[torch.Tensor] = []
-        self._y_pred:  list[torch.Tensor] = []
-        self._y_sigma: list[torch.Tensor] = []
+        self._y_true:     list[torch.Tensor] = []
+        self._y_pred:     list[torch.Tensor] = []
+        self._y_sigma:    list[torch.Tensor] = []
+        self._z_observed: list[torch.Tensor] = []
 
     # ── Lightning hooks ───────────────────────────────────────────────────────
 
@@ -164,19 +166,32 @@ class PlotParamEstCallback(Callback):
         self._y_true.clear()
         self._y_pred.clear()
         self._y_sigma.clear()
+        self._z_observed.clear()
 
-        # Resolve save_dir: explicit override > {logger.save_dir}/{run_name} > fallback
+        # Resolve save_dir: explicit override > {logger.save_dir}/{project}/{run_id}/plots > fallback
         if self._save_dir_override:
             self.save_dir = self._save_dir_override
-        elif hasattr(trainer.logger, 'save_dir') and hasattr(trainer.logger, 'name'):
-            self.save_dir = Path(trainer.logger.save_dir) / trainer.logger.name
-        # else keep the placeholder '.' set in __init__
+        elif hasattr(trainer.logger, 'save_dir') and trainer.logger.save_dir is not None:
+            # Access experiment first to force wandb init, then try multiple id sources.
+            exp = getattr(trainer.logger, 'experiment', None)
+            run_id = (
+                getattr(exp, 'id', None)
+                or getattr(trainer.logger, 'version', None)
+                or getattr(trainer.logger, 'id', None)
+            )
+            if run_id is not None:
+                base = Path(trainer.logger.save_dir)
+                project = getattr(exp, 'project', None)
+                if project:
+                    base = base / project
+                self.save_dir = base / run_id / 'plots'
 
         # Read variable config from the datamodule
         cfg = trainer.datamodule.cfg
-        self.target_variables   = list(cfg.target_variables)
+        self.target_variables    = list(cfg.target_variables)
+        self.observed_variables  = list(cfg.observed_variables) if hasattr(cfg, 'observed_variables') else []
         self.normalize_variables = cfg.normalize_variables
-        self.normalize_range    = tuple(cfg.normalize_range)
+        self.normalize_range     = tuple(cfg.normalize_range)
         if self.normalize_variables:
             # var_scales are computed from the training file and stored on each dataset
             self.var_scales = dict(trainer.datamodule.test_dataset.var_scales)
@@ -187,6 +202,8 @@ class PlotParamEstCallback(Callback):
         self._y_true.append(outputs['y_true'])
         self._y_pred.append(outputs['y_pred'])
         self._y_sigma.append(outputs['y_sigma'])
+        if 'z_observed' in outputs:
+            self._z_observed.append(outputs['z_observed'])
 
     def on_test_epoch_end(self, trainer, pl_module):
         if not self._y_true:
@@ -195,6 +212,7 @@ class PlotParamEstCallback(Callback):
         y_true  = torch.cat(self._y_true).numpy()   # (N, n_vars)
         y_pred  = torch.cat(self._y_pred).numpy()
         y_sigma = torch.cat(self._y_sigma).numpy()
+        z_observed = torch.cat(self._z_observed).numpy() if self._z_observed else None
 
         if self.normalize_variables and self.var_scales:
             y_true  = self._unnormalize_values(y_true)
@@ -202,7 +220,7 @@ class PlotParamEstCallback(Callback):
             y_sigma = self._unnormalize_sigma(y_sigma)
 
         self.save_dir.mkdir(parents=True, exist_ok=True)
-        self._save_csv(y_true, y_pred, y_sigma)
+        self._save_csv(y_true, y_pred, y_sigma, z_observed)
         self._plot(y_true, y_pred, y_sigma)
 
     # ── Un-normalization ──────────────────────────────────────────────────────
@@ -227,14 +245,19 @@ class PlotParamEstCallback(Callback):
 
     # ── CSV ───────────────────────────────────────────────────────────────────
 
-    def _save_csv(self, y_true: np.ndarray, y_pred: np.ndarray, y_sigma: np.ndarray):
+    def _save_csv(self, y_true: np.ndarray, y_pred: np.ndarray, y_sigma: np.ndarray,
+                  z_observed: np.ndarray | None = None):
         cols = (
             [f'{v}_true'       for v in self.target_variables] +
             [f'{v}_pred'       for v in self.target_variables] +
             [f'sigma_{v}_pred' for v in self.target_variables]
         )
+        arrays = [y_true, y_pred, y_sigma]
+        if z_observed is not None and self.observed_variables:
+            cols += list(self.observed_variables)
+            arrays.append(z_observed)
         pd.DataFrame(
-            np.concatenate([y_true, y_pred, y_sigma], axis=1),
+            np.concatenate(arrays, axis=1),
             columns=cols,
         ).to_csv(self.save_dir / 'param_est_results.csv', index=False)
 

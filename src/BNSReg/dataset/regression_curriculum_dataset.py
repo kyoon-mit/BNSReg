@@ -1,7 +1,6 @@
 import torch
 from torch.utils.data import Dataset
 
-from BNSReg.core.config import BNSDataModuleCurriculumConfig
 from BNSReg.dataset.regression_dataset import BNSDatasetRegression
 
 

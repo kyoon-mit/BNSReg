@@ -1,4 +1,6 @@
-# This file is derived from the S4 repository:
+# SPDX-License-Identifier: Apache-2.0
+#
+# This file is a derivative work of the S4 repository:
 #   https://github.com/state-spaces/s4/blob/main/models/s4/s4d.py
 #   https://github.com/state-spaces/s4/blob/main/examples.py
 #
@@ -8,7 +10,11 @@
 # You may obtain a copy of the License at:
 #   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Modifications (c) 2026 Kyungseop Yoon (kyoon@mit.edu), 2026-01-14
+# Modifications copyright (c) 2026 Kyungseop Yoon (kyoon@mit.edu)
+# This project (BNSReg) is released under the MIT License; see LICENSE.
+# Third-party attributions are listed in NOTICE.
+#
+# Modifications made on 2026-01-14:
 #   - Adjusted the import path for DropoutNd to match this repository:
 #       from `src.models.nn` -> `BNSReg.functions.dropout`
 #   - `BNSReg.functions.dropout` is itself derived from S4 and retains
@@ -19,9 +25,19 @@
 #   - Added arguments to S4Model and passed it to S4D initialization
 #     (without further modification to the upstream kernel logic).
 #   - Replaced use of Python complex literals (e.g. `1j`) with
-#     `torch.complex(...)` to ensure compatibility with `torch.compile`
+#     `torch.complex(...)` to ensure compatibility with `torch.compile`.
+#
+# Modifications made on 2026-04-18:
+#   - Added optional `input_norm` flag to S4Model that applies per-channel
+#     InstanceNorm1d (affine=True) along the time axis before the encoder,
+#     controlled by the `input_norm` field in S4DModelConfig.
 
-"""Minimal version of S4D with extra options and features stripped out, for pedagogical purposes."""
+"""Minimal version of S4D with extra options and features stripped out, for pedagogical purposes.
+
+See docs/ssm_memory_scaling.md for a detailed analysis of why S4D's Vandermonde kernel
+materialises an (H, N//2, L) intermediate that makes large-L training infeasible on
+consumer GPUs, and how LinOSS (models/linoss.py) avoids this bottleneck.
+"""
 
 import math
 import torch
@@ -143,11 +159,16 @@ class S4Model(nn.Module):
         prenorm=False,
         lr=None,
         dt_min=0.001,
-        dt_max=0.1
+        dt_max=0.1,
+        input_norm=False,
     ):
         super().__init__()
 
         self.prenorm = prenorm
+
+        # Optional per-channel instance norm along the time axis; normalises amplitude scale
+        # without destroying relative phase/frequency content between channels.
+        self._input_norm = nn.InstanceNorm1d(d_input, affine=True) if input_norm else None
 
         # Linear encoder (d_input = 1 for grayscale and 3 for RGB)
         self.encoder = nn.Linear(d_input, d_model)
@@ -171,6 +192,8 @@ class S4Model(nn.Module):
         """
         Input x is shape (B, L, d_input)
         """
+        if self._input_norm is not None:
+            x = self._input_norm(x.transpose(1, 2)).transpose(1, 2)  # InstanceNorm1d expects (B, C, L)
         x = self.encoder(x)  # (B, L, d_input) -> (B, L, d_model)
         x = x.transpose(-1, -2)  # (B, L, d_model) -> (B, d_model, L)
 

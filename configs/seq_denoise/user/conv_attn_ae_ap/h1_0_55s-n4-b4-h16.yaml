@@ -149,12 +149,12 @@ optimizer:
 lr_scheduler:
   class_path: torch.optim.lr_scheduler.CosineAnnealingWarmRestarts
   init_args:
-    T_0: 16     # int (required)
-    T_mult: 1  # int
+    T_0: 16       # int (required)
+    T_mult: 1     # int
     eta_min: 5e-8 # float
 
 # =========================
 # Checkpoint loading
 # =========================
-ckpt_path: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs/seq_denoise_snr_15_30_seq_0_55s/conv_attn_ae_ap_h16/checkpoints/conv_attn_ae_ap_ckpt_epoch=07.ckpt    # path | null
+ckpt_path: null    # path | null
 weights_only: null # bool | null

@@ -33,6 +33,7 @@ trainer:
         monitor: val/loss   # str
         patience: null      # int (required)
         mode: min           # str
+        min_delta: 1e-4     # float
         verbose: true       # bool
 
     - class_path: lightning.pytorch.callbacks.LearningRateMonitor

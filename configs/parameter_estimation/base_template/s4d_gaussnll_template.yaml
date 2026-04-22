@@ -96,6 +96,13 @@ model:
       d_state: null     # int (required)
       n_layers: null    # int (required)
       dropout: null     # float (0.0–1.0)
+    beta_nll: 0.5
+    base_lr: null
+    warmup_epochs: null
+    T_0: null
+    T_mult: null
+    eta_min: null
+    warmup_start_factor: null
 
 # =========================
 # Data
@@ -151,24 +158,6 @@ data:
 
 # =========================
 # Optimizer
-# =========================
-optimizer:
-  class_path: torch.optim.AdamW
-  init_args:
-    lr: null   # float (required)
-
-# =========================
-# LR Scheduler
-# =========================
-lr_scheduler:
-  class_path: torch.optim.lr_scheduler.CosineAnnealingWarmRestarts
-  init_args:
-    T_0: null     # int (required)
-    T_mult: null  # int
-    eta_min: null # float
-
-# =========================
-# Checkpoint loading
 # =========================
 ckpt_path: null    # path | null
 weights_only: null # bool | null

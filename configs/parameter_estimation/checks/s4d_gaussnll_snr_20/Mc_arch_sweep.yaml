@@ -1,0 +1,24 @@
+program: bash
+project: checks_s4d_gaussnll_snr_20
+name: snr_20_30_Mc_arch_sweep
+method: grid
+parameters:
+  model.init_args.model_cfg.d_model:
+    values: [512, 256, 128, 64]
+  model.init_args.model_cfg.d_state:
+    values: [64, 32, 16]
+  model.init_args.model_cfg.n_layers:
+    values: [8, 4, 2]
+  time_window:
+    # "begin,end" in seconds; windows ordered large→small, near→far from merger
+    # 8s ending at coalescence, 4s windows (near/mid/far), 2s ending at coalescence
+    values: ["59,63", "55,59", "51,55", "43,47", "31,35", "1,5"]
+command:
+  - ${env}
+  - ${program}
+  - /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/configs/parameter_estimation/checks/s4d_gaussnll_snr_20/sweep_runner.sh
+  - --config
+  - /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/configs/parameter_estimation/checks/s4d_gaussnll_snr_20/base_chirp_mass.yaml
+  - --var
+  - Mc
+  - ${args}

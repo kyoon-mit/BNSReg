@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --partition=gpu_test
 #SBATCH --time=12:00:00
-#SBATCH --job-name=s4d
+#SBATCH --job-name=sky
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
@@ -15,12 +15,11 @@ TOP_DIR=/n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg
 source /n/home04/kyoon/miniforge3/etc/profile.d/conda.sh
 conda activate ssm_cuda312
 
-config_path=/n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/configs/parameter_estimation/s4d_mse_fasrc_slurm.yaml
+config_path=/n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/configs/parameter_estimation/user/dec_phi/s4d_mse_snr_8_100_sig_only/m1_0s-d64-s16-l4.yaml
 
 echo "Running on host: $(hostname)"
 echo "Using config file: $config_path"
 
 cd ${TOP_DIR}
 srun --cpu-bind=none python -m BNSReg.core.main fit \
-    --config "$config_path" \
-    --trainer.logger.init_args.id ${SLURM_JOB_ID}
+    --config "$config_path"

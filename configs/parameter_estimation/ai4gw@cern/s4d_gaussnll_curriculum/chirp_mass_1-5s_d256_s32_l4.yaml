@@ -1,0 +1,160 @@
+# lightning.pytorch==2.6.0
+# Curriculum training: hard-switch across 3 SNR bins (30-50 → 15-30 → 5-15)
+# To use smooth mixing, adjust stage_weights (e.g. [0.8,0.15,0.05], etc.)
+
+seed_everything: 20260418
+
+trainer:
+  accelerator: gpu
+  strategy: auto
+  devices: auto
+  num_nodes: 1
+  precision: null
+
+  logger:
+    class_path: lightning.pytorch.loggers.wandb.WandbLogger
+    init_args:
+      project: ai4gw@cern__s4d_gaussnll_curriculum
+      id: chirp_mass_1-5s_d256_s32_l4_betaNLL_SSMLRboost_dt_range_FASTER_CURRICULUM
+      save_dir: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs
+
+  callbacks:
+    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      init_args:
+        monitor: val/gaussnll
+        mode: min
+        save_top_k: 1
+        save_on_train_epoch_end: true
+        filename: 's4d_gaussnll_curriculum_ckpt_{epoch:02d}'
+
+    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      init_args:
+        monitor: val/mse/out_0
+        mode: min
+        save_top_k: 2
+        save_on_train_epoch_end: true
+        filename: 's4d_gaussnll_curriculum_var0mse_ckpt_{epoch:02d}'
+
+    - class_path: lightning.pytorch.callbacks.EarlyStopping
+      init_args:
+        monitor: val/mse/out_0
+        patience: 200
+        mode: min
+        verbose: true
+
+    - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+      init_args:
+        logging_interval: epoch
+
+    - class_path: BNSReg.callbacks.within_pct_accuracy.WithinPctAccuracyCallback
+
+    - class_path: BNSReg.callbacks.plot_param_est.PlotParamEstCallback
+      init_args:
+        save_dir: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs/ai4gw@cern__s4d_gaussnll_curriculum/chirp_mass_1-5s_d256_s32_l4/plots
+
+  fast_dev_run: false
+  max_epochs: 3000
+  min_epochs: 100
+  max_steps: -1
+  check_val_every_n_epoch: 1
+  log_every_n_steps: 10
+  enable_progress_bar: true
+  accumulate_grad_batches: 1
+  reload_dataloaders_every_n_epochs: 0
+  default_root_dir: null
+
+# =========================
+# Model
+# =========================
+model:
+  class_path: BNSReg.tasks.parameter_estimation.model_s4d_gaussnll.LitModelS4DGaussianNLLLoss
+  init_args:
+    model_cfg:
+      d_input: 2
+      d_output: 2
+      d_model: 256
+      d_state: 32
+      n_layers: 4
+      dropout: 0.1
+      lr: 1.0e-3
+      # dt range tuned for L=1024 (4 s @ 256 Hz):
+      # dt_max must satisfy exp(-0.5 * dt_max * L) >= 0.3  →  dt_max <= 0.0023
+      dt_min: 1.0e-4
+      dt_max: 2.0e-3
+    beta_nll: 0.5
+    base_lr: 1.0e-4
+    warmup_epochs: 15
+    T_0: 16
+    T_mult: 1
+    eta_min: 1.0e-7
+    warmup_start_factor: 1.0e-2
+
+# =========================
+# Data
+# =========================
+data:
+  class_path: BNSReg.dataloader.curriculum_loader.LitBNSDataCurriculum
+  init_args:
+    data_cfg:
+      # ===== Variables =====
+      target_variables: ['chirp_mass']
+      observed_variables: ['snr']
+
+      # ===== Normalization =====
+      normalize_variables: true
+      normalize_range: [0.0, 1.0]
+
+      # ===== Curriculum files (high SNR → low SNR) =====
+      train_files:
+        - /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/ai4gw@cern/bns_snr_30_50_uniform_256Hz_50K/train/sig_combined_train.h5
+        - /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/ai4gw@cern/bns_snr_15_30_uniform_256Hz_50K/train/sig_combined_train.h5
+        - /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/ai4gw@cern/bns_snr_5_15_uniform_256Hz_50K/train/sig_combined_train.h5
+
+      # ===== Curriculum schedule =====
+      # stage_schedule[i]: epoch when stage i begins
+      # stage_weights[i]:  sampling weights over train_files for stage i
+      #   [1,0,0] = hard switch (Option A); non-zero entries = mixture (Option C)
+      stage_schedule: [0, 10, 100]
+      stage_weights:
+        - [1.00, 0.00, 0.00]   # epochs  0–15:  high SNR only (warmup + 1 cosine cycle)
+        - [0.25, 0.75, 0.00]   # epochs 16–31:  high+mid SNR mix
+        - [0.10, 0.25, 0.65]   # epochs 32+:    full SNR range
+
+      # ===== Val / test files (full SNR range) =====
+      train_file: ""   # unused; set automatically from train_files[0]
+      test_file: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/ai4gw@cern/bns_snr_5_50_uniform_powerlaw_256Hz_100K/test/sig_combined_test.h5
+      val_file: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/ai4gw@cern/bns_snr_5_50_uniform_powerlaw_256Hz_100K/val/sig_combined_val.h5
+
+      injected_data_key: whitened_injected
+
+      # ===== Signal properties (1–5 s window) =====
+      strain_frequency: 256
+      downsample_factor: 1
+      strain_duration: 64
+      coalescence_time: 63
+      window_begin: 1
+      window_end: 5
+
+      # ===== Precision =====
+      strain_precision: torch.float32
+      variables_precision: torch.float32
+
+      # ===== HDF5 caching =====
+      rdcc_nbytes: 67108864
+      rdcc_nslots: 10007
+      rdcc_w0: 0.75
+
+      # ===== Batching ====
+      train_batch_size: 128
+      val_batch_size: 128
+      test_batch_size: 128
+      num_workers: 4
+      shuffle: true
+      prefetch_factor: 2
+      persistent_workers: true
+
+# =========================
+# Optimizer
+# =========================
+ckpt_path: null # /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs/ai4gw@cern__s4d_gaussnll_curriculum/chirp_mass_1-5s_d256_s32_l4_betaNLL_SSMLRboost_dt_range_FASTER_CURRICULUM/checkpoints/s4d_gaussnll_curriculum_var0mse_ckpt_epoch=20.ckptcv
+weights_only: null

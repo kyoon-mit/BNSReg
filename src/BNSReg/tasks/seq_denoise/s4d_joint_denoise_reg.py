@@ -6,7 +6,7 @@ from torch import optim
 from BNSReg.tasks.base_task import LitBaseTask
 from BNSReg.models.s4d_seq2seq import S4ModelSeq2Seq
 from BNSReg.core.config import S4DModelConfig
-
+from BNSReg.callbacks.log_metric import log_GaussianNLLLoss
 
 class LitModelS4DJointDenoiseReg(LitBaseTask):
     """Joint denoising + regression via shared S4D encoder with two heads.
@@ -149,11 +149,14 @@ class LitModelS4DJointDenoiseReg(LitBaseTask):
         self.log(f'{stage}/loss_rec', loss_rec, on_step=False, on_epoch=True)
         self.log(f'{stage}/loss_reg', loss_reg, on_step=False, on_epoch=True)
 
-        for i in range(self.n_vars):
-            self.log(f'{stage}/sigma_{i}',
-                     var[:, i].mean().sqrt(),
-                     on_step=False, on_epoch=True)
-
+        log_GaussianNLLLoss(
+            task=self,
+            stage=stage,
+            loss=loss_reg,
+            indiv_mse=F.mse_loss(mean, y_target, reduction='none').mean(dim=0),
+            variance=var,
+        )
+        
         return loss
 
     def training_step(self, batch, batch_idx):

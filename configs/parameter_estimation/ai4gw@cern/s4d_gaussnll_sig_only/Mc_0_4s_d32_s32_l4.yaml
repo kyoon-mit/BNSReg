@@ -44,6 +44,8 @@ trainer:
       init_args:
         logging_interval: epoch
 
+    - class_path: BNSReg.callbacks.within_pct_accuracy.WithinPctAccuracyCallback
+
     - class_path: BNSReg.callbacks.plot_param_est.PlotParamEstCallback
       init_args:
         save_dir: ""
@@ -105,6 +107,13 @@ model:
       d_state: 32
       n_layers: 4
       dropout: 0.3
+    beta_nll: 0.5
+    base_lr: 1.0e-4
+    warmup_epochs: 50
+    T_0: 64
+    T_mult: 2
+    eta_min: 1.0e-8
+    warmup_start_factor: 1.0e-2
 
 # =========================
 # Data
@@ -160,26 +169,6 @@ data:
 
 # =========================
 # Optimizer
-# =========================
-optimizer:
-  class_path: torch.optim.AdamW
-  init_args:
-    lr: 1e-4         # float (required)
-
-# =========================
-# LR Scheduler
-# =========================
-lr_scheduler:
-  class_path: BNSReg.utils.schedulers.WarmupCosineAnnealingWarmRestarts
-  init_args:
-    warmup_epochs: 50
-    T_0: 64
-    T_mult: 2
-    eta_min: 1e-8
-    warmup_start_factor: 0.01
-
-# =========================
-# Checkpoint loading
 # =========================
 ckpt_path: null     # path | null
 weights_only: null  # bool | null

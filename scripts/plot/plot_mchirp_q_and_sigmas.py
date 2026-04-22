@@ -14,14 +14,14 @@ BINS = {
 }
 
 MIN_VAL = {
-    'chirp_mass': 1.0,
+    'chirp_mass': 0.85-0.05,
     'mass_ratio': 0.4,
     'mass1':      1.0,
     'mass2':      1.0,
 }
 
 MAX_VAL = {
-    'chirp_mass': 2.2,
+    'chirp_mass': 2.2+0.05,
     'mass_ratio': 1.0,
     'mass1':      2.5,
     'mass2':      2.5,
@@ -30,14 +30,14 @@ MAX_VAL = {
 # ── LaTeX labels ──────────────────────────────────────────────────────────────
 
 LABEL = {
-    'chirp_mass': r'$\mathcal{M}_{\mathrm{chirp}}$',
+    'chirp_mass': r'$\mathcal{M}_{c}$',
     'mass_ratio': r'$q$',
     'mass1':      r'$m_1$',
     'mass2':      r'$m_2$',
 }
 
 SIG_LABEL = {
-    'chirp_mass': r'$\sigma_{\mathcal{M}_{\mathrm{chirp}}}$',
+    'chirp_mass': r'$\sigma_{\mathcal{M}_{c}}$',
     'mass_ratio': r'$\sigma_{q}$',
     'mass1':      r'$\sigma_{m_1}$',
     'mass2':      r'$\sigma_{m_2}$',
@@ -198,7 +198,7 @@ def plot_gw_results(csv_path: Path, save_path: Path | None = None):
 
         # perfect prediction diagonal
         ax.plot(lims, lims, color='gray', alpha=0.5, linewidth=1.2,
-                linestyle=':', label='True = Pred')
+                linestyle=':')
         # 95% quantile lines (dotted)
         stairs_pair(ax, centers_cut, q2p5[valid],
                     color='steelblue', linewidth=0.8, linestyle='dotted', alpha=0.7, label='95%')
@@ -264,7 +264,7 @@ def plot_gw_results(csv_path: Path, save_path: Path | None = None):
         names = ['mchirp_q_hist', 'pred_vs_true', 'uncertainty_hist', 'z_score_hist']
         for fig, name in zip([fig1, fig2, fig3, fig4], names):
             out = save_path / f'{name}.png'
-            fig.savefig(out, dpi=150, bbox_inches='tight')
+            fig.savefig(out, dpi=400, bbox_inches='tight')
             print(f'Saved {out}')
     else:
         plt.show()

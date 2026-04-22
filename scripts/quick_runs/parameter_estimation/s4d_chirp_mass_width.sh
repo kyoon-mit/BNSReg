@@ -1,5 +1,5 @@
 python -m BNSReg.core.main fit \
-    --model BNSReg.tasks.parameter_estimation.model_s4d_mse.LitModelS4DGaussianNLLLoss \
+    --model BNSReg.tasks.parameter_estimation.model_s4d_gaussnll.LitModelS4DGaussianNLLLoss \
     --model.model_cfg.d_input 2 \
     --model.model_cfg.d_output 2 \
     --model.model_cfg.d_model 4 \

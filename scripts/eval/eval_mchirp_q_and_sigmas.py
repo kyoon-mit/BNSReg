@@ -7,9 +7,9 @@ from BNSReg.dataloader.regression_loader import LitBNSDataRegression
 
 global ckpt_path
 global config_path
-ckpt_path = '/n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs/s4d_gaussnll_8_100_pre_match_filter/two_masses_59s_63s-d64-s64-l4/checkpoints/s4d_gaussnll_ckpt_epoch=339.ckpt'
-config_path = '/n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/configs/parameter_estimation/user/mc/s4d_gaussnll_8_100_pre_match_filter/two_masses_59s_63s-d64-s64-l4.yaml'
-csv_path = '/n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs/s4d_gaussnll_8_100_pre_match_filter/two_masses_59s_63s-d64-s64-l4/' + 'signal.csv'
+ckpt_path = '/n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs/s4d_gaussnll_15_30_pre_match_filter/two_masses_59s_63s-d64-s64-l4-ckpt4/checkpoints/s4d_gaussnll_var0mseloss_ckpt_epoch=1096.ckpt'
+config_path = '/n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/configs/parameter_estimation/user/mc/s4d_gaussnll_15_30_pre_match_filter/two_masses_59s_63s-d64-s64-l4.yaml'
+csv_path = '/n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs/s4d_gaussnll_15_30_pre_match_filter/two_masses_59s_63s-d64-s64-l4-ckpt4/' + 'background.csv'
 
 def main():
     # Device

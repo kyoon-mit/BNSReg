@@ -6,9 +6,10 @@ from BNSReg.models.conv_ae import ConvAE, ConvAEAP, ConvAttentionAEAP
 from BNSReg.core.config import ConvAEModelConfig, ConvAEAPModelConfig, ConvAttentionAEAPModelConfig
     
 class LitModelConvAE(LitBaseTask):
-    def __init__(self, cfg: ConvAEModelConfig):
+    def __init__(self, model_cfg: ConvAEModelConfig):
         super().__init__()
-        self.cfg = cfg
+        self.save_hyperparameters()
+        self.cfg = model_cfg
         self.criterion = torch.nn.MSELoss(reduction='mean')
         self.model = None
         self.configure_model()
@@ -26,17 +27,14 @@ class LitModelConvAE(LitBaseTask):
     def compute_loss(self, batch):
         input, target = batch   # (B, n_ifos, L), (B, n_ifos, L)
         
-        h1_injected = input[:, 0, :]
-        l1_injected = input[:, 1, :]
-        h1_sig_only = target[:, 0, :]
-        l1_sig_only = target[:, 1, :]
+        n_ifos = input.shape[1]
+        total_loss = 0
 
-        h1_out = self(h1_injected)
-        l1_out = self(l1_injected)
+        for i in range(n_ifos):
+            output = self(input[:, i, :])
+            total_loss += self.criterion(output, target[:, i, :].unsqueeze(1))
 
-        loss_h1 = self.criterion(h1_out, h1_sig_only.unsqueeze(1))
-        loss_l1 = self.criterion(l1_out, l1_sig_only.unsqueeze(1))
-        return (loss_h1 + loss_l1) / 2
+        return total_loss / n_ifos
 
     def configure_optimizers(self):
         optimizer = optim.AdamW(self.parameters(), lr=1e-3)
@@ -47,8 +45,8 @@ class LitModelConvAE(LitBaseTask):
         }
     
 class LitModelConvAEAP(LitModelConvAE):
-    def __init__(self, cfg: ConvAEAPModelConfig):
-        super().__init__(cfg)
+    def __init__(self, model_cfg: ConvAEAPModelConfig):
+        super().__init__(model_cfg)
 
     def configure_model(self):
         if self.model is not None:
@@ -58,8 +56,8 @@ class LitModelConvAEAP(LitModelConvAE):
             self.model = torch.compile(self.model)
 
 class LitModelConvAttentionAEAP(LitModelConvAE):
-    def __init__(self, cfg: ConvAttentionAEAPModelConfig):
-        super().__init__(cfg)
+    def __init__(self, model_cfg: ConvAttentionAEAPModelConfig):
+        super().__init__(model_cfg)
 
     def configure_model(self):
         if self.model is not None:

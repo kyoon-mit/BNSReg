@@ -104,6 +104,8 @@ data:
       # ===== Variables =====
       target_variables: ['chirp_mass', 'snr']
       observed_variables: []
+      normalize_variables: true
+      normalize_range: [0.0, 1.0]
 
       # ===== Files =====
       train_file: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/bns_snr_8_100_powerlaw_256Hz_128s_100K/train/sig_combined_train.h5

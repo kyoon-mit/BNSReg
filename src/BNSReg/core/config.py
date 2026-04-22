@@ -148,7 +148,8 @@ class BNSDataModuleCurriculumConfig(BNSDataModuleRegressionConfig):
     train_files: tuple[str, ...]
     stage_schedule: tuple[int, ...]
     stage_weights: tuple[tuple[float, ...], ...]
-    train_file: str = ""  # overridden in __post_init__; do not set manually
+    # train_file is inherited from BNSDatasetConfig; set it to "" in YAML —
+    # __post_init__ will replace it with train_files[0] before validation.
 
     def __post_init__(self) -> None:
         n = len(self.train_files)
@@ -177,7 +178,7 @@ class BNSDataModuleCurriculumConfig(BNSDataModuleRegressionConfig):
             if not os.path.exists(path):
                 raise FileNotFoundError(f"Train file not found: {path}")
         object.__setattr__(self, "train_file", self.train_files[0])
-        super().__post_init__()
+        super(BNSDataModuleCurriculumConfig, self).__post_init__()
 
 
 @dataclass(frozen=True, slots=True)
@@ -198,6 +199,9 @@ class S4DModelConfig(BNSModelConfig):
     dt_min: float = 0.001
     dt_max: float = 0.1
     lr: float | None = None
+
+    # input pre-processing
+    input_norm: bool = False  # per-channel InstanceNorm1d along the time axis before the encoder
 
     def __post_init__(self) -> None:
         if self.dt_min >= self.dt_max:

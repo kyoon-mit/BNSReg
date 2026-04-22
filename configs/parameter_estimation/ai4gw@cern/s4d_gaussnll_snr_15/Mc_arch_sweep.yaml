@@ -1,0 +1,22 @@
+program: bash
+project: ai4gw@cern__s4d_gaussnll_snr_15
+name: snr_15_Mc_arch_sweep
+method: grid
+parameters:
+  model.init_args.model_cfg.d_model:
+    values: [256, 128, 64, 32]
+  model.init_args.model_cfg.d_state:
+    values: [128, 64, 32]
+  model.init_args.model_cfg.n_layers:
+    values: [8, 4]
+  time_window:
+    values: ["0,4"]
+command:
+  - ${env}
+  - ${program}
+  - /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/configs/parameter_estimation/ai4gw@cern/s4d_gaussnll_snr_15/sweep_runner.sh
+  - --config
+  - /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/configs/parameter_estimation/ai4gw@cern/s4d_gaussnll_snr_15/chirp_mass_0-4s_d32_s64_l4.yaml
+  - --var
+  - Mc
+  - ${args}

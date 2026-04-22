@@ -15,7 +15,7 @@ class FitTestCLI(LightningCLI):
 
 
 def cli_main():
-    FitTestCLI(save_config_callback=None, subclass_mode_model=True)
+    FitTestCLI(save_config_callback=None, subclass_mode_model=True, subclass_mode_data=True)
 
 
 if __name__ == '__main__':
