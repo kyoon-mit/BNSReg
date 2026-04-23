@@ -31,25 +31,29 @@ class LitModelLinOSSGaussianNLLLoss(LitBaseTask):
     def forward(self, x):
         return self.model(x)
 
-    def compute_loss(self, batch):
+    def training_step(self, batch, batch_idx):
         X_sequence, y_target, z_observed = batch
-        X_sequence = X_sequence.transpose(2, 1)  # (B, d_input, L) -> (B, L, d_input)
-        outputs = self(X_sequence)               # (B, d_output)
+        X_sequence = X_sequence.transpose(2, 1)
+        outputs = self(X_sequence)
         mean = outputs[:, :self.n_vars]
         var = self.var_activation(outputs[:, self.n_vars:])
         mse_metric = torch.nn.MSELoss(reduction='none')
-        y_indiv_mse = mse_metric(mean, y_target).T.mean(dim=1)  # (n_vars,)
-        return self.criterion(mean, y_target, var), y_indiv_mse, var
-
-    def training_step(self, batch, batch_idx):
-        loss, y_indiv_mse, var = self.compute_loss(batch)
+        y_indiv_mse = mse_metric(mean, y_target).T.mean(dim=1)
+        loss = self.criterion(mean, y_target, var)
         log_GaussianNLLLoss(self, 'train', loss, y_indiv_mse, var)
-        return loss
+        return {'loss': loss, 'mean': mean.detach(), 'y_target': y_target.detach()}
 
     def validation_step(self, batch, batch_idx):
-        loss, y_indiv_mse, var = self.compute_loss(batch)
+        X_sequence, y_target, z_observed = batch
+        X_sequence = X_sequence.transpose(2, 1)
+        outputs = self(X_sequence)
+        mean = outputs[:, :self.n_vars]
+        var = self.var_activation(outputs[:, self.n_vars:])
+        mse_metric = torch.nn.MSELoss(reduction='none')
+        y_indiv_mse = mse_metric(mean, y_target).T.mean(dim=1)
+        loss = self.criterion(mean, y_target, var)
         log_GaussianNLLLoss(self, 'val', loss, y_indiv_mse, var)
-        return loss
+        return {'loss': loss, 'mean': mean.detach(), 'y_target': y_target.detach()}
 
     def test_step(self, batch, batch_idx):
         X_sequence, y_target, z_observed = batch

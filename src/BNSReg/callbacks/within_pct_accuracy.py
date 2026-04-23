@@ -40,7 +40,7 @@ class WithinPctAccuracyCallback(Callback):
         return out
 
     def _log(self, pl_module, outputs, stage: str):
-        if outputs is None or 'mean' not in outputs:
+        if outputs is None or not isinstance(outputs, dict) or 'mean' not in outputs:
             return
         mean     = outputs['mean']      # (B, n_vars)
         y_target = outputs['y_target']  # (B, n_vars)
