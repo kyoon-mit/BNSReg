@@ -8,8 +8,10 @@
 # Key differences from S4D (see s4d.py for comparison):
 #   - No (H, N, L) Vandermonde intermediate; SSM state lives in P-dim space (P << H)
 #   - Memory scales as O(B * L * P) for the scan, not O(H * N * L) for the kernel
-#   - The core recurrence is a sequential loop (batch-vectorized over B), compiled
-#     via torch.compile into a single fused graph per sequence length
+#   - The core recurrence uses torch._higher_order_ops.associative_scan —
+#     an O(log L) parallel algorithm equivalent to jax.lax.associative_scan.
+#     Complex tensors are split into real/imag components to avoid torchinductor's
+#     current lack of complex-op code generation.
 #   - Discretization is stable by construction (LinOSS-IM: implicit; LinOSS-IMEX:
 #     implicit-explicit), motivated by forced harmonic oscillators
 
@@ -151,7 +153,7 @@ class LinOSSLayer(nn.Module):
         F1 = Bu * (M11 * step)   # (B, L, P) * (P,)  broadcasts
         F2 = Bu * (M21 * step)
 
-        return self._sequential_scan(M11, M12, M21, M22, F1, F2, B_batch, P)
+        return self._associative_scan(M11, M12, M21, M22, F1, F2, B_batch, P)
 
     def _scan_imex(
         self,
@@ -171,11 +173,11 @@ class LinOSSLayer(nn.Module):
         F1 = Bu * step
         F2 = Bu * (step ** 2)
 
-        return self._sequential_scan(M11, M12, M21, M22, F1, F2, B_batch, P)
+        return self._associative_scan(M11, M12, M21, M22, F1, F2, B_batch, P)
 
     @staticmethod
-    def _sequential_scan(
-        M11: torch.Tensor,  # (P,)
+    def _associative_scan(
+        M11: torch.Tensor,  # (P,) real
         M12: torch.Tensor,
         M21: torch.Tensor,
         M22: torch.Tensor,
@@ -184,33 +186,63 @@ class LinOSSLayer(nn.Module):
         B_batch: int,
         P: int,
     ) -> torch.Tensor:
-        """Batch-vectorized sequential recurrence.
+        """O(log L) parallel scan — equivalent to jax.lax.associative_scan.
 
-        State: z = [z1, z2] — position (z1) and velocity (z2) of P oscillators.
-        z1_{t+1} = M11 * z1_t + M12 * z2_t + F1_t
-        z2_{t+1} = M21 * z1_t + M22 * z2_t + F2_t
-        Output: the velocity z2 sequence, shape (B, L, P) complex.
+        The recurrence  [z1; z2]_{t+1} = M @ [z1; z2]_t + [F1; F2]_t  with
+        zero initial state is solved by the associative composition:
 
-        The loop runs L steps but each step updates all B batch elements
-        simultaneously, so the GPU works on (B, P) tensors per step.
-        torch.compile fuses all L steps into one kernel per forward pass
-        (no per-step Python overhead at inference/training time).
+            (Am, Af) ∘ (Bm, Bf) = (Bm @ Am,  Bm @ Af + Bf)
+
+        where each element carries the accumulated transition matrix power and
+        the accumulated driving force.  PyTorch executes this in O(log L) via
+        work-efficient parallel tree-reduction.
+
+        Complex tensors are split into real/imag components because torchinductor
+        cannot yet generate CUDA code for complex operators.
         """
+        from torch._higher_order_ops.associative_scan import associative_scan
+
         L = F1.shape[1]
-        device = F1.device
 
-        z1 = torch.zeros(B_batch, P, dtype=F1.dtype, device=device)
-        z2 = torch.zeros(B_batch, P, dtype=F1.dtype, device=device)
+        # (L, B, P) real — scan dimension first
+        f1r = F1.real.permute(1, 0, 2).contiguous()
+        f1i = F1.imag.permute(1, 0, 2).contiguous()
+        f2r = F2.real.permute(1, 0, 2).contiguous()
+        f2i = F2.imag.permute(1, 0, 2).contiguous()
 
-        ys: list[torch.Tensor] = []
-        for t in range(L):
-            z1_new = M11 * z1 + M12 * z2 + F1[:, t]
-            z2_new = M21 * z1 + M22 * z2 + F2[:, t]
-            z1 = z1_new
-            z2 = z2_new
-            ys.append(z2)
+        # All scan tensors must have identical shape: (L, B, P)
+        # Broadcast constant M over L and B
+        m11 = M11.unsqueeze(0).unsqueeze(0).expand(L, B_batch, -1)
+        m12 = M12.unsqueeze(0).unsqueeze(0).expand(L, B_batch, -1)
+        m21 = M21.unsqueeze(0).unsqueeze(0).expand(L, B_batch, -1)
+        m22 = M22.unsqueeze(0).unsqueeze(0).expand(L, B_batch, -1)
 
-        return torch.stack(ys, dim=1)  # (B, L, P) complex
+        def combine_fn(a, b):
+            am11, am12, am21, am22, af1r, af1i, af2r, af2i = a
+            bm11, bm12, bm21, bm22, bf1r, bf1i, bf2r, bf2i = b
+
+            # Accumulated matrix: cm = bm @ am  (2×2 block, P independent oscillators)
+            cm11 = bm11 * am11 + bm12 * am21
+            cm12 = bm11 * am12 + bm12 * am22
+            cm21 = bm21 * am11 + bm22 * am21
+            cm22 = bm21 * am12 + bm22 * am22
+
+            # Accumulated forcing: cf = bm @ af + bf  (real and imag independently)
+            cf1r = bm11 * af1r + bm12 * af2r + bf1r
+            cf1i = bm11 * af1i + bm12 * af2i + bf1i
+            cf2r = bm21 * af1r + bm22 * af2r + bf2r
+            cf2i = bm21 * af1i + bm22 * af2i + bf2i
+
+            return cm11, cm12, cm21, cm22, cf1r, cf1i, cf2r, cf2i
+
+        _, _, _, _, _, _, z2r, z2i = associative_scan(
+            combine_fn,
+            (m11, m12, m21, m22, f1r, f1i, f2r, f2i),
+            dim=0,
+            combine_mode='generic',
+        )
+        # z2r, z2i: (L, B, P) → (B, L, P) complex
+        return torch.complex(z2r, z2i).permute(1, 0, 2)
 
 
 class LinOSSBlock(nn.Module):
