@@ -58,7 +58,7 @@ class BNSBaseDataset(Dataset):
         with h5py.File(file_path, 'r') as f:
             for k in keys:
                 data = f[k][:]
-                stats[k] = (float(data.min()), float(data.max()))
+                stats[k] = (float(np.nanmin(data)), float(np.nanmax(data)))
         return stats
 
     def _get_vars(self, f: h5py.File, keys: tuple[str, ...], idx: int, dtype: torch.dtype) -> torch.Tensor:

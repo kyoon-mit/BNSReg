@@ -1,3 +1,6 @@
+import warnings
+import h5py
+import numpy as np
 import torch
 
 from BNSReg.dataset.base_dataset import BNSBaseDataset, Stage
@@ -10,9 +13,29 @@ class BNSDatasetRegression(BNSBaseDataset):
         self._set_index()
 
         self.var_scales: dict[str, tuple[float, float]] = {}  # key -> (min, max)
+        all_vars = tuple(cfg.target_variables) + tuple(cfg.observed_variables)
         if cfg.normalize_variables:
-            all_vars = tuple(cfg.target_variables) + tuple(cfg.observed_variables)
             self.var_scales = self._compute_var_minmax(cfg.train_file, all_vars)
+
+        # Build index of valid (non-NaN) samples
+        self._valid_indices = self._build_valid_index(all_vars)
+
+    def _build_valid_index(self, keys: tuple[str, ...]) -> np.ndarray:
+        with h5py.File(self.file_path, 'r') as f:
+            stacked = np.stack([f[k][:] for k in keys], axis=1)  # (N, n_vars)
+        valid = np.where(~np.any(np.isnan(stacked), axis=1))[0]
+        n_skipped = self.n_samples - len(valid)
+        if n_skipped > 0:
+            warnings.warn(
+                f'[{self.__class__.__name__}] {self.file_path}: skipping {n_skipped} sample(s) '
+                f'({100*n_skipped/self.n_samples:.3f}%) with NaN in {list(keys)}.',
+                UserWarning,
+                stacklevel=2,
+            )
+        return valid
+
+    def __len__(self) -> int:
+        return len(self._valid_indices)
 
     def _normalize(self, tensor: torch.Tensor, keys: tuple[str, ...]) -> torch.Tensor:
         if not keys:
@@ -26,6 +49,7 @@ class BNSDatasetRegression(BNSBaseDataset):
         f = self._get_file()
         dtype = str_to_dtype(self.cfg.variables_precision)
 
+        idx = int(self._valid_indices[idx])
         seq = self._read_strain(f, self.cfg.injected_data_key, idx)
         X_sequence = torch.as_tensor(seq, dtype=str_to_dtype(self.cfg.strain_precision))
         y_target = self._get_vars(f, self.cfg.target_variables, idx, dtype=dtype)
