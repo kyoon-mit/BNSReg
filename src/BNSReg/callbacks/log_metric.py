@@ -15,5 +15,5 @@ def log_GaussianNLLLoss(
     task.log(f'{stage}/gaussnll', loss, on_step=False, on_epoch=True, prog_bar=True)
     for i in range(len(indiv_mse)):
         task.log(f'{stage}/mse/out_{i}', indiv_mse[i], on_step=False, on_epoch=True)
-        task.log(f'{stage}/sigma_{i}', torch.sqrt(variance[i].mean(dim=0)), on_step=False, on_epoch=True)
+        task.log(f'{stage}/sigma_{i}', variance[:, i].mean().sqrt(), on_step=False, on_epoch=True)
     return
