@@ -16,7 +16,7 @@ trainer:
     class_path: lightning.pytorch.loggers.wandb.WandbLogger
     init_args:
       project: checks_linoss_gaussnll_snr_15_30
-      id: chirp_mass_59-63s_d256_s32_l4_paramnorm
+      id: chirp_mass_59-63s_d256_s32_l4_paramnorm_betanll_spread
       save_dir: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs
 
   callbacks:
@@ -49,6 +49,8 @@ trainer:
 
     - class_path: BNSReg.callbacks.within_pct_accuracy.WithinPctAccuracyCallback
 
+    - class_path: BNSReg.callbacks.efficiency.EfficiencyCallback
+
     - class_path: BNSReg.callbacks.plot_param_est.PlotParamEstCallback
       init_args:
         save_dir: ""
@@ -79,7 +81,7 @@ model:
       dropout: 0.2
       discretization: IM
     beta_nll: 0.3
-    lambda_spread: 0.1
+    lambda_spread: 0.5
 
 # =========================
 # Optimizer
