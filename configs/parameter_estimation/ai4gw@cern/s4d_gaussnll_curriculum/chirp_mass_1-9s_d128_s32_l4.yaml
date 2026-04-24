@@ -48,6 +48,8 @@ trainer:
 
     - class_path: BNSReg.callbacks.within_pct_accuracy.WithinPctAccuracyCallback
 
+    - class_path: BNSReg.callbacks.efficiency.EfficiencyCallback
+
     - class_path: BNSReg.callbacks.plot_param_est.PlotParamEstCallback
       init_args:
         save_dir: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs/ai4gw@cern__s4d_gaussnll_curriculum/chirp_mass_1-9s_d256_s32_l4/plots
@@ -79,11 +81,12 @@ model:
       lr: 1.0e-3
       # dt range tuned for L=1024 (4 s @ 256 Hz):
       # dt_max must satisfy exp(-0.5 * dt_max * L) >= 0.3  →  dt_max <= 0.0023
-      dt_min: 5.0e-5
-      dt_max: 2.0e-3
-    beta_nll: 0.5
+      dt_min: 0.001e-5
+      dt_max: 1e-3
+    beta_nll: 0.3
+    lambda_spread: 0.3
     base_lr: 1.0e-4
-    warmup_epochs: 15
+    warmup_epochs: 10
     T_0: 16
     T_mult: 1
     eta_min: 1.0e-7

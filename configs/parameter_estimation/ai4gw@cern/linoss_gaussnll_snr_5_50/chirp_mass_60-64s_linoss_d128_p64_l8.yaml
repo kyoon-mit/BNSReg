@@ -106,7 +106,8 @@ model:
       n_layers: 8
       dropout: 0.3
       discretization: IM   # IM (implicit) or IMEX (implicit-explicit)
-    beta_nll: 0.5
+    beta_nll: 0.3
+    lambda_spread: 0.3
 
 # =========================
 # Data

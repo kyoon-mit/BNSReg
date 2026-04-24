@@ -81,7 +81,7 @@ model:
       dropout: 0.2
       discretization: IM
     beta_nll: 0.3
-    lambda_spread: 0.5
+    lambda_spread: 0.3
 
 # =========================
 # Optimizer

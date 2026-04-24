@@ -46,6 +46,8 @@ trainer:
 
     - class_path: BNSReg.callbacks.within_pct_accuracy.WithinPctAccuracyCallback
 
+    - class_path: BNSReg.callbacks.efficiency.EfficiencyCallback
+
     - class_path: BNSReg.callbacks.plot_param_est.PlotParamEstCallback
       init_args:
         save_dir: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs/ai4gw@cern__s4d_gaussnll_snr_5_50/chirp_mass_0-4s_d64_s16_l8/plots
@@ -107,9 +109,12 @@ model:
       d_state: 16
       n_layers: 8
       dropout: 0.3
-    beta_nll: 0.5
+      dt_min: 0.001
+      dt_max: 1
+    beta_nll: 0.3
+    lambda_spread: 0.3
     base_lr: 5.0e-5
-    warmup_epochs: 60
+    warmup_epochs: 10
     T_0: 32
     T_mult: 2
     eta_min: 5.0e-7
