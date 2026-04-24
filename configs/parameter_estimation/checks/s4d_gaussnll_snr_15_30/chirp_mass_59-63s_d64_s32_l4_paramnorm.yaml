@@ -50,6 +50,8 @@ trainer:
 
     - class_path: BNSReg.callbacks.efficiency.EfficiencyCallback
 
+    - class_path: BNSReg.callbacks.wandb_csv_export.WandBCSVExportCallback
+
     - class_path: BNSReg.callbacks.plot_param_est.PlotParamEstCallback
       init_args:
         save_dir: ""

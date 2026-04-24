@@ -42,6 +42,8 @@ trainer:
     - class_path: BNSReg.callbacks.within_pct_accuracy.WithinPctAccuracyCallback
 
     - class_path: BNSReg.callbacks.efficiency.EfficiencyCallback
+
+    - class_path: BNSReg.callbacks.wandb_csv_export.WandBCSVExportCallback
       init_args:
         logging_interval: epoch   # str: step | epoch
 
