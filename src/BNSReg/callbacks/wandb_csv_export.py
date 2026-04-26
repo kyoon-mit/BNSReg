@@ -18,11 +18,13 @@ class WandBCSVExportCallback(Callback):
             return
 
         exp = logger.experiment
-        entity  = getattr(exp, 'entity',  None)
         project = getattr(exp, 'project', None)
         run_id  = getattr(exp, 'id',      None)
+        # exp.path gives the canonical 'entity/project/run_id' string that
+        # the public API always accepts, even when project contains '@'.
+        run_path = getattr(exp, 'path', None)
 
-        if not all([entity, project, run_id]):
+        if not all([project, run_id, run_path]):
             return
 
         # Resolve output path: same base as plots/ and checkpoints/
@@ -35,7 +37,7 @@ class WandBCSVExportCallback(Callback):
 
         # Pull full run history via the W&B API (scan_history returns all rows)
         api = wandb.Api()
-        run = api.run(f'{entity}/{project}/{run_id}')
+        run = api.run(run_path)
         rows = list(run.scan_history())
         if not rows:
             return

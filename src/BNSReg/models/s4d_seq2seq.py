@@ -53,9 +53,11 @@ class S4ModelSeq2Seq(nn.Module):
         lr: float | None = None,
         dt_min: float = 0.001,
         dt_max: float = 0.1,
+        input_norm: bool = False,
     ):
         super().__init__()
         self.prenorm   = prenorm
+        self._input_norm = nn.InstanceNorm1d(d_input, affine=True) if input_norm else None
         self.encoder   = nn.Linear(d_input, d_model)
         self.s4_layers = nn.ModuleList()
         self.norms     = nn.ModuleList()
@@ -75,6 +77,8 @@ class S4ModelSeq2Seq(nn.Module):
         Returns:  (B, L, d_output)
                   or ((B, L, d_output), (B, L, d_model)) when return_features=True
         """
+        if self._input_norm is not None:
+            x = self._input_norm(x.transpose(1, 2)).transpose(1, 2)
         x = self.encoder(x)      # (B, L, d_model)
         x = x.transpose(-1, -2)  # (B, d_model, L)
 

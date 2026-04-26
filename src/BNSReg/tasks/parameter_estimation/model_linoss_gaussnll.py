@@ -1,11 +1,13 @@
 import torch
 import torch.nn.functional as F
+import torch.optim as optim
 
 from BNSReg.tasks.base_task import LitBaseTask
 from BNSReg.models.linoss import LinOSSModel
 from BNSReg.core.config import LinOSSModelConfig
 from BNSReg.callbacks.log_metric import log_GaussianNLLLoss
 from BNSReg.losses.beta_nll import BetaNLLLoss
+from BNSReg.utils.schedulers import WarmupCosineAnnealingWarmRestarts
 
 
 class LitModelLinOSSGaussianNLLLoss(LitBaseTask):
@@ -14,6 +16,13 @@ class LitModelLinOSSGaussianNLLLoss(LitBaseTask):
         model_cfg: LinOSSModelConfig,
         beta_nll: float = 0.5,
         lambda_spread: float = 0.0,
+        base_lr: float = 1e-4,
+        weight_decay: float = 1e-2,
+        warmup_epochs: int = 10,
+        T_0: int = 10,
+        T_mult: int = 2,
+        eta_min: float = 1e-7,
+        warmup_start_factor: float = 1e-2,
     ):
         super().__init__()
         if model_cfg.d_output % 2 != 0:
@@ -34,6 +43,22 @@ class LitModelLinOSSGaussianNLLLoss(LitBaseTask):
         self.model = LinOSSModel(**self.cfg.model_kwargs())
         self.model = torch.compile(self.model)
 
+    def configure_optimizers(self):
+        optimizer = optim.AdamW(
+            self.parameters(),
+            lr=self.hparams.base_lr,
+            weight_decay=self.hparams.weight_decay,
+        )
+        scheduler = WarmupCosineAnnealingWarmRestarts(
+            optimizer,
+            warmup_epochs=self.hparams.warmup_epochs,
+            T_0=self.hparams.T_0,
+            T_mult=self.hparams.T_mult,
+            eta_min=self.hparams.eta_min,
+            warmup_start_factor=self.hparams.warmup_start_factor,
+        )
+        return {'optimizer': optimizer, 'lr_scheduler': {'scheduler': scheduler, 'interval': 'epoch'}}
+
     def forward(self, x):
         return self.model(x)
 
@@ -47,7 +72,6 @@ class LitModelLinOSSGaussianNLLLoss(LitBaseTask):
         y_indiv_mse = mse_metric(mean, y_target).T.mean(dim=1)  # (n_vars,)
         nll = self.criterion(mean, y_target, var)
 
-        # Underdispersion penalty: softplus(Var(true) - Var(pred)) per variable.
         spread = F.softplus(y_target.detach().var(dim=0) - mean.var(dim=0)).mean()
 
         loss = nll + self.hparams.lambda_spread * spread
@@ -69,13 +93,19 @@ class LitModelLinOSSGaussianNLLLoss(LitBaseTask):
 
     def test_step(self, batch, batch_idx):
         X_sequence, y_target, z_observed = batch
-        X_sequence = X_sequence.transpose(2, 1)  # (B, d_input, L) -> (B, L, d_input)
-        outputs = self(X_sequence)               # (B, d_output)
+        X_sequence = X_sequence.transpose(2, 1)
+        outputs = self(X_sequence)
         mean = outputs[:, :self.n_vars]
         var = self.var_activation(outputs[:, self.n_vars:])
         sigma = torch.sqrt(var)
         return {
-            'y_true':  y_target.detach().cpu(),
-            'y_pred':  mean.detach().cpu(),
-            'y_sigma': sigma.detach().cpu(),
+            'y_true':     y_target.detach().cpu(),
+            'y_pred':     mean.detach().cpu(),
+            'y_sigma':    sigma.detach().cpu(),
+            'z_observed': z_observed.detach().cpu(),
         }
+
+    def on_after_backward(self):
+        for name, param in self.named_parameters():
+            if param.grad is not None:
+                self.log(f'grad_norm/{name}', param.grad.norm(), on_step=False, on_epoch=True)

@@ -127,7 +127,7 @@ class LitModelS4DGaussianNLLLoss(LitBaseTask):
     def on_after_backward(self):
         for name, param in self.named_parameters():
             if param.grad is not None:
-                self.log(f'grad_norm/{name}', param.grad.norm())
+                self.log(f'grad_norm/{name}', param.grad.norm(), on_step=False, on_epoch=True)
             if 'log_A_real' in name:
                 self.log(f'ssm/A_real_mean/{name}', -param.exp().mean(), on_step=False, on_epoch=True)
                 self.log(f'ssm/A_real_max/{name}', -param.exp().max(), on_step=False, on_epoch=True)
