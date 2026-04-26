@@ -15,7 +15,7 @@ trainer:
     class_path: lightning.pytorch.loggers.wandb.WandbLogger
     init_args:
       project: checks_s4d_gaussnll_snr_15_30
-      id: SIGONLY_chirp_mass_59-63s_d64_s32_l4_paramnorm
+      id: SIGONLY_chirp_mass_59-63s_d64_s32_l4
       save_dir: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs
 
   callbacks:

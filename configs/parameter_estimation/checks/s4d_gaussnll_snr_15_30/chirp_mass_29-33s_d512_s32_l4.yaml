@@ -15,7 +15,7 @@ trainer:
     class_path: lightning.pytorch.loggers.wandb.WandbLogger
     init_args:
       project: checks_s4d_gaussnll_snr_15_30
-      id: chirp_mass_59-63s_d512_s32_l4_paramnorm
+      id: SIGNONLY_chirp_mass_29-33s_d512_s32_l4
       save_dir: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs
 
   callbacks:
@@ -82,11 +82,11 @@ model:
       dropout: 0.2
       input_norm: false
       lr: 5.0e-4
-      dt_min: 0.001e-3
+      dt_min: 0.1
       # dt_max=1e-3: satisfies exp(-0.5 * dt_max * L) >= 0.3 for all windows up to 8s (L=2048)
-      dt_max: 1
+      dt_max: 2
     beta_nll: 0.3
-    lambda_spread: 0.3
+    lambda_spread: 0.5
     base_lr: 1.0e-5
     warmup_epochs: 10
     T_0: 10
@@ -112,16 +112,16 @@ data:
       test_file: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/ai4gw@cern/bns_snr_15_30_uniform_256Hz_50K/test/sig_combined_test.h5
       val_file: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/ai4gw@cern/bns_snr_15_30_uniform_256Hz_50K/val/sig_combined_val.h5
 
-      injected_data_key: whitened_injected
+      injected_data_key: whitened_signal
 
       # ===== Signal properties =====
       strain_frequency: 256
-      downsample_factor: 1
+      downsample_factor: 2
       strain_duration: 64
       coalescence_time: 63
 
-      window_begin: 59
-      window_end: 63
+      window_begin: 29
+      window_end: 33
 
       # ===== Precision =====
       strain_precision: torch.float32
@@ -133,13 +133,13 @@ data:
       rdcc_w0: 0.75
 
       # ===== Batching =====
-      train_batch_size: 16
-      val_batch_size: 16
-      test_batch_size: 16
+      train_batch_size: 128
+      val_batch_size: 128
+      test_batch_size: 128
 
       num_workers: 4
       shuffle: true
-      prefetch_factor: 3
+      prefetch_factor: 2
       persistent_workers: true
 
 # =========================
