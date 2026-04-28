@@ -22,6 +22,7 @@ class LitModelS4DGaussianNLLLoss(LitBaseTask):
         T_mult: int = 1,
         eta_min: float = 1e-7,
         warmup_start_factor: float = 0.01,
+        reset_optimizer: bool = False,
     ):
         super().__init__()
         if model_cfg.d_output % 2 != 0:
@@ -75,6 +76,11 @@ class LitModelS4DGaussianNLLLoss(LitBaseTask):
             warmup_start_factor=self.hparams.warmup_start_factor,
         )
         return {'optimizer': optimizer, 'lr_scheduler': {'scheduler': scheduler, 'interval': 'epoch'}}
+
+    def on_load_checkpoint(self, checkpoint: dict) -> None:
+        if self.hparams.reset_optimizer:
+            checkpoint.pop('optimizer_states', None)
+            checkpoint.pop('lr_schedulers', None)
 
     def forward(self, x):
         return self.model(x)
