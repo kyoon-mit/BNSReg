@@ -1,0 +1,133 @@
+# lightning.pytorch==2.6.0
+# S4D contrastive denoiser: push denoised → clean signal, pull away from background
+# Window: 59–63 s (4 s pre-merger, 256 Hz → L=1024)
+# Architecture: d_model=256, d_state=64, n_layers=4
+
+seed_everything: 20260425
+
+trainer:
+  accelerator: gpu
+  strategy: auto
+  devices: auto
+  num_nodes: 1
+  precision: null
+
+  logger:
+    class_path: lightning.pytorch.loggers.wandb.WandbLogger
+    init_args:
+      project: ai4gw@cern__s4d_contrastive_snr_10_20
+      id: seq_denoise_59-63s_d256_s64_l4
+      save_dir: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs
+
+  callbacks:
+    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      init_args:
+        monitor: val/loss
+        mode: min
+        save_top_k: 1
+        save_on_train_epoch_end: true
+        filename: 's4d_contrastive_ckpt_{epoch:02d}'
+
+    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      init_args:
+        monitor: val/mse
+        mode: min
+        save_top_k: 2
+        save_on_train_epoch_end: true
+        filename: 's4d_contrastive_mse_ckpt_{epoch:02d}'
+
+    - class_path: lightning.pytorch.callbacks.EarlyStopping
+      init_args:
+        monitor: val/loss
+        patience: 15
+        mode: min
+        min_delta: 1e-5
+        verbose: true
+
+    - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+      init_args:
+        logging_interval: epoch
+
+  fast_dev_run: false
+  max_epochs: 3000
+  min_epochs: 30
+  max_steps: -1
+  check_val_every_n_epoch: 1
+  log_every_n_steps: 10
+  enable_progress_bar: true
+  accumulate_grad_batches: 1
+
+# =========================
+# Model
+# =========================
+model:
+  class_path: BNSReg.tasks.seq_denoise.s4d_contrastive.LitModelS4DContrastive
+  init_args:
+    cfg:
+      d_input: 2
+      d_output: 2
+      d_model: 256
+      d_state: 64
+      n_layers: 4
+      dropout: 0.2
+      dt_min: 0.001e-3
+      dt_max: 1
+    margin: 0.1
+    lambda_rec: 1.0
+
+# =========================
+# Data
+# =========================
+data:
+  class_path: BNSReg.dataloader.triplet_loader.LitBNSDataTriplet
+  init_args:
+    data_cfg:
+      train_file: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/ai4gw@cern/bns_snr_10_20_uniform_powerlaw_256Hz_50K/train/sig_combined_train.h5
+      val_file:   /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/ai4gw@cern/bns_snr_10_20_uniform_powerlaw_256Hz_50K/val/sig_combined_val.h5
+      test_file:  /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/ai4gw@cern/bns_snr_10_20_uniform_powerlaw_256Hz_50K/test/sig_combined_test.h5
+
+      injected_data_key: whitened_injected
+      sig_only_data_key: whitened_signal
+      bkg_only_data_key: whitened_bkg
+
+      strain_frequency: 256
+      downsample_factor: 1
+      strain_duration: 64
+      coalescence_time: 63
+      window_begin: 59
+      window_end: 63
+
+      strain_precision: torch.float32
+      variables_precision: torch.float32
+
+      rdcc_nbytes: 67108864
+      rdcc_nslots: 10007
+      rdcc_w0: 0.75
+
+      train_batch_size: 64
+      val_batch_size: 64
+      test_batch_size: 64
+      num_workers: 4
+      shuffle: true
+      prefetch_factor: 4
+      persistent_workers: true
+
+# =========================
+# Optimizer
+# =========================
+optimizer:
+  class_path: torch.optim.AdamW
+  init_args:
+    lr: 1e-4
+
+lr_scheduler:
+  class_path: BNSReg.utils.schedulers.WarmupCosineAnnealingWarmRestarts
+  init_args:
+    warmup_epochs: 50
+    T_0: 64
+    T_mult: 2
+    eta_min: 1e-8
+    warmup_start_factor: 0.01
+
+ckpt_path: null
+weights_only: null

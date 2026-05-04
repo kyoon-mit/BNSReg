@@ -1,0 +1,144 @@
+# lightning.pytorch==2.6.0
+# Sky localization check: regress (dec, phi) from whitened_injected (signal+noise).
+# base_lr=1e-4 and batch_size=16 match the snr_15_30 signal-only run that succeeded.
+
+seed_everything: 20260425
+
+trainer:
+  accelerator: gpu
+  strategy: auto
+  devices: auto
+  num_nodes: 1
+  precision: null
+
+  logger:
+    class_path: lightning.pytorch.loggers.wandb.WandbLogger
+    init_args:
+      project: checks_s4d_sky_snr_30_50
+      id: sky_59-63s_d128_s64_l4
+      save_dir: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs
+
+  callbacks:
+    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      init_args:
+        monitor: val/loss
+        mode: min
+        save_top_k: 1
+        save_on_train_epoch_end: true
+        filename: 's4d_sky_ckpt_{epoch:02d}'
+
+    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      init_args:
+        monitor: val/angular_error_deg
+        mode: min
+        save_top_k: 3
+        save_on_train_epoch_end: true
+        filename: 's4d_sky_angErr_ckpt_{epoch:02d}'
+
+    - class_path: lightning.pytorch.callbacks.EarlyStopping
+      init_args:
+        monitor: val/angular_error_deg
+        patience: 50
+        mode: min
+        verbose: true
+
+    - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+      init_args:
+        logging_interval: epoch
+
+    - class_path: BNSReg.callbacks.efficiency.EfficiencyCallback
+
+    - class_path: BNSReg.callbacks.wandb_csv_export.WandBCSVExportCallback
+
+    - class_path: BNSReg.callbacks.plot_param_est.PlotParamEstCallback
+
+  gradient_clip_val: 0.8
+  fast_dev_run: false
+  max_epochs: 3000
+  min_epochs: 80
+  max_steps: -1
+  check_val_every_n_epoch: 1
+  log_every_n_steps: 10
+  enable_progress_bar: true
+  accumulate_grad_batches: 1
+  reload_dataloaders_every_n_epochs: 0
+  default_root_dir: null
+
+# =========================
+# Model
+# =========================
+model:
+  class_path: BNSReg.tasks.sky_localization.model_s4d_sky_cosine.LitModelS4DSkyCosineLoss
+  init_args:
+    model_cfg:
+      d_input: 2
+      d_output: 3
+      d_model: 128
+      d_state: 64
+      n_layers: 4
+      dropout: 0.2
+      input_norm: true
+      lr: 5.0e-4
+      dt_min: 1.5
+      dt_max: 3.5
+    base_lr: 1.0e-4
+    weight_decay: 1.0e-2
+    warmup_epochs: 0
+    T_0: 5
+    T_mult: 2
+    eta_min: 1.0e-7
+    warmup_start_factor: 1.0e-2
+
+# =========================
+# Data
+# =========================
+data:
+  class_path: BNSReg.dataloader.regression_loader.LitBNSDataRegression
+  init_args:
+    data_cfg:
+      # ===== Variables =====
+      target_variables: ['dec', 'phi']
+      observed_variables: ['snr']
+      normalize_variables: false    # raw radians required for angle→vector conversion
+      normalize_range: [0.0, 1.0]
+
+      # ===== Files =====
+      train_file: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/ai4gw@cern/bns_snr_30_50_uniform_256Hz_50K/train/sig_combined_train.h5
+      test_file: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/ai4gw@cern/bns_snr_30_50_uniform_256Hz_50K/test/sig_combined_test.h5
+      val_file: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/ai4gw@cern/bns_snr_30_50_uniform_256Hz_50K/val/sig_combined_val.h5
+
+      injected_data_key: whitened_injected
+
+      # ===== Signal properties =====
+      strain_frequency: 256
+      downsample_factor: 2
+      strain_duration: 64
+      coalescence_time: 63
+
+      window_begin: 59
+      window_end: 63
+
+      # ===== Precision =====
+      strain_precision: torch.float32
+      variables_precision: torch.float32
+
+      # ===== HDF5 caching =====
+      rdcc_nbytes: 67108864
+      rdcc_nslots: 10007
+      rdcc_w0: 0.75
+
+      # ===== Batching =====
+      train_batch_size: 64
+      val_batch_size: 64
+      test_batch_size: 64
+
+      num_workers: 4
+      shuffle: true
+      prefetch_factor: 2
+      persistent_workers: true
+
+# =========================
+# Checkpoint
+# =========================
+ckpt_path: null
+weights_only: null

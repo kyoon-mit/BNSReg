@@ -16,7 +16,7 @@ trainer:
     class_path: lightning.pytorch.loggers.wandb.WandbLogger
     init_args:
       project: fine_tune
-      id: chirp_mass_59-63s_d512_s32_l4_snr_10_20_uniform_to_snr_5_50_powerlaw
+      id: chirp_mass_59-63s_d512_s32_l4_snr_10_20_uniform_to_snr_5_50_powerlaw___
       save_dir: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs
 
   callbacks:
@@ -32,16 +32,24 @@ trainer:
       init_args:
         monitor: val/mse/out_0
         mode: min
-        save_top_k: 2
+        save_top_k: 1
         save_on_train_epoch_end: true
         filename: 's4d_gaussnll_var0mse_ckpt_{epoch:02d}'
 
+    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      init_args:
+        monitor: val/spread_penalty
+        mode: min
+        save_top_k: 3
+        save_on_train_epoch_end: true
+        filename: 's4d_gaussnll_spread_ckpt_{epoch:02d}'
+
     - class_path: lightning.pytorch.callbacks.EarlyStopping
       init_args:
-        monitor: val/mse/out_0
+        monitor: val/spread_penalty
         patience: 60
         mode: min
-        min_delta: 1e-6
+        min_delta: 1e-7
         verbose: true
 
     - class_path: lightning.pytorch.callbacks.LearningRateMonitor
@@ -77,14 +85,14 @@ model:
       n_layers: 4
       dropout: 0.2
       input_norm: false
-      lr: 1.0e-5
-      dt_min: 0.001e-3
-      dt_max: 1
+      lr: 5.0e-6
+      dt_min: 0.1
+      dt_max: 2
     beta_nll: 0.3
     lambda_spread: 0.5
-    base_lr: 1.0e-6
-    warmup_epochs: 10
-    T_0: 10
+    base_lr: 1.0e-7
+    warmup_epochs: 20
+    T_0: 20
     T_mult: 2
     eta_min: 1.0e-8
     warmup_start_factor: 1.0e-2
@@ -122,12 +130,12 @@ data:
       rdcc_nslots: 10007
       rdcc_w0: 0.75
 
-      train_batch_size: 128
-      val_batch_size: 128
-      test_batch_size: 128
+      train_batch_size: 64
+      val_batch_size: 64
+      test_batch_size: 64
       num_workers: 4
       shuffle: true
-      prefetch_factor: 4
+      prefetch_factor: 2
       persistent_workers: true
 
-ckpt_path: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/SAVED_RESULTS/ai4gw@cern/s4d_gaussnll_snr_10_20/chirp_mass_59-63s_d512_s32_l4/checkpoints/s4d_gaussnll_var0mse_ckpt_epoch=101.ckpt
+ckpt_path: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/SAVED_RESULTS/checks/s4d_gaussnll_snr_10_20/chirp_mass_59-63s_d512_s32_l4/checkpoints/s4d_gaussnll_var0mse_ckpt_epoch=101.ckpt

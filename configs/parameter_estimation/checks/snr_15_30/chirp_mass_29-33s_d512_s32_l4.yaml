@@ -1,0 +1,149 @@
+# lightning.pytorch==2.6.0
+# Base config for SNR 30-50 architecture sweep.
+# window_begin, window_end, and batch sizes are overridden by sweep_runner.sh.
+
+seed_everything: 20260422
+
+trainer:
+  accelerator: gpu
+  strategy: auto
+  devices: auto
+  num_nodes: 1
+  precision: null
+
+  logger:
+    class_path: lightning.pytorch.loggers.wandb.WandbLogger
+    init_args:
+      project: checks_s4d_gaussnll_snr_15_30
+      id: SIGNONLY_chirp_mass_29-33s_d512_s32_l4
+      save_dir: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs
+
+  callbacks:
+    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      init_args:
+        monitor: val/gaussnll
+        mode: min
+        save_top_k: 1
+        save_on_train_epoch_end: true
+        filename: 's4d_gaussnll_snr15_30_ckpt_{epoch:02d}'
+
+    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      init_args:
+        monitor: val/mse/out_0
+        mode: min
+        save_top_k: 3
+        save_on_train_epoch_end: true
+        filename: 's4d_gaussnll_snr15_30_var0mse_ckpt_{epoch:02d}'
+
+    - class_path: lightning.pytorch.callbacks.EarlyStopping
+      init_args:
+        monitor: val/mse/out_0
+        patience: 20
+        mode: min
+        verbose: true
+
+    - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+      init_args:
+        logging_interval: epoch
+
+    - class_path: BNSReg.callbacks.within_pct_accuracy.WithinPctAccuracyCallback
+
+    - class_path: BNSReg.callbacks.efficiency.EfficiencyCallback
+
+    - class_path: BNSReg.callbacks.wandb_csv_export.WandBCSVExportCallback
+
+    - class_path: BNSReg.callbacks.plot_param_est.PlotParamEstCallback
+      init_args:
+        save_dir: ""
+
+  fast_dev_run: false
+  max_epochs: 3000
+  min_epochs: 60
+  max_steps: -1
+  check_val_every_n_epoch: 1
+  log_every_n_steps: 10
+  enable_progress_bar: true
+  accumulate_grad_batches: 1
+  reload_dataloaders_every_n_epochs: 0
+  default_root_dir: null
+
+# =========================
+# Model
+# =========================
+model:
+  class_path: BNSReg.tasks.parameter_estimation.model_s4d_gaussnll.LitModelS4DGaussianNLLLoss
+  init_args:
+    model_cfg:
+      d_input: 2
+      d_output: 2
+      d_model: 512
+      d_state: 32
+      n_layers: 4
+      dropout: 0.2
+      input_norm: false
+      lr: 5.0e-4
+      dt_min: 0.1
+      # dt_max=1e-3: satisfies exp(-0.5 * dt_max * L) >= 0.3 for all windows up to 8s (L=2048)
+      dt_max: 2
+    beta_nll: 0.3
+    lambda_spread: 0.5
+    base_lr: 1.0e-5
+    warmup_epochs: 10
+    T_0: 10
+    T_mult: 2
+    eta_min: 1.0e-7
+    warmup_start_factor: 1.0e-2
+
+# =========================
+# Data
+# =========================
+data:
+  class_path: BNSReg.dataloader.regression_loader.LitBNSDataRegression
+  init_args:
+    data_cfg:
+      # ===== Variables =====
+      target_variables: ['chirp_mass']
+      observed_variables: ['snr']
+      normalize_variables: true
+      normalize_range: [0.0, 1.0]
+
+      # ===== Files =====
+      train_file: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/ai4gw@cern/bns_snr_15_30_uniform_256Hz_50K/train/sig_combined_train.h5
+      test_file: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/ai4gw@cern/bns_snr_15_30_uniform_256Hz_50K/test/sig_combined_test.h5
+      val_file: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/ai4gw@cern/bns_snr_15_30_uniform_256Hz_50K/val/sig_combined_val.h5
+
+      injected_data_key: whitened_signal
+
+      # ===== Signal properties =====
+      strain_frequency: 256
+      downsample_factor: 2
+      strain_duration: 64
+      coalescence_time: 63
+
+      window_begin: 29
+      window_end: 33
+
+      # ===== Precision =====
+      strain_precision: torch.float32
+      variables_precision: torch.float32
+
+      # ===== HDF5 caching =====
+      rdcc_nbytes: 67108864
+      rdcc_nslots: 10007
+      rdcc_w0: 0.75
+
+      # ===== Batching =====
+      train_batch_size: 128
+      val_batch_size: 128
+      test_batch_size: 128
+
+      num_workers: 4
+      shuffle: true
+      prefetch_factor: 2
+      persistent_workers: true
+
+# =========================
+# Optimizer
+# =========================
+ckpt_path: null
+weights_only: null

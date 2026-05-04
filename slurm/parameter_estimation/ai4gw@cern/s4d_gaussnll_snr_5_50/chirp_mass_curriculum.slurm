@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --partition=gpu_test
 #SBATCH --time=12:00:00
-#SBATCH --job-name=chirp_mass_curriculum
+#SBATCH --job-name=chirp_mass_59_63s_curriculum_snr5_50
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
@@ -15,7 +15,7 @@ TOP_DIR=/n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg
 source /n/home04/kyoon/miniforge3/etc/profile.d/conda.sh
 conda activate ssm_cuda312
 
-config_path=/n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/configs/parameter_estimation/ai4gw@cern/s4d_gaussnll_curriculum/chirp_mass_62-63s_d32_s16_l2.yaml
+config_path=/n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/configs/parameter_estimation/ai4gw@cern/s4d_gaussnll_curriculum/chirp_mass_1-9s_d512_s32_l4.yaml
 echo "Running on host: $(hostname)"
 echo "Using config file: $config_path"
 
