@@ -14,7 +14,8 @@ class EfficiencyCallback(Callback):
     """
 
     def on_train_epoch_start(self, trainer, pl_module):
-        torch.cuda.reset_peak_memory_stats()
+        if torch.cuda.is_available():
+            torch.cuda.reset_peak_memory_stats()
         self._epoch_t0 = time.perf_counter()
 
     def on_before_optimizer_step(self, trainer, pl_module, optimizer):
@@ -23,7 +24,8 @@ class EfficiencyCallback(Callback):
         self._step_t0 = time.perf_counter()
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
-        torch.cuda.synchronize()
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
         step_s = time.perf_counter() - self._step_t0
         batch_size = batch[0].shape[0]
 
@@ -32,7 +34,7 @@ class EfficiencyCallback(Callback):
 
     def on_train_epoch_end(self, trainer, pl_module):
         epoch_s = time.perf_counter() - self._epoch_t0
-        peak_mb = torch.cuda.max_memory_allocated() / 1e6
+        peak_mb = torch.cuda.max_memory_allocated() / 1e6 if torch.cuda.is_available() else 0.0
 
         pl_module.log('eff/epoch_wall_time_s', epoch_s, on_epoch=True, prog_bar=False)
         pl_module.log('eff/peak_gpu_mem_mb', peak_mb, on_epoch=True, prog_bar=False)

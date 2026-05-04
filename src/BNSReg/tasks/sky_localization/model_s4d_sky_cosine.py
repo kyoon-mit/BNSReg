@@ -27,10 +27,22 @@ class LitModelS4DSkyCosineLoss(LitBaseTask):
         T_mult: int = 2,
         eta_min: float = 1e-7,
         warmup_start_factor: float = 1e-2,
+        reset_optimizer: bool = False,
     ):
         super().__init__()
         if model_cfg.d_output != 3:
             raise ValueError(f'{model_cfg.d_output=} must be 3 (x, y, z direction vector).')
+        # Store before save_hyperparameters: Lightning restores self.hparams from checkpoint
+        # before on_load_checkpoint runs, so configure_optimizers() would otherwise see stale
+        # values from the checkpoint's hyper_parameters dict instead of the current config.
+        self._base_lr_init = base_lr
+        self._weight_decay_init = weight_decay
+        self._warmup_epochs_init = warmup_epochs
+        self._T_0_init = T_0
+        self._T_mult_init = T_mult
+        self._eta_min_init = eta_min
+        self._warmup_start_factor_init = warmup_start_factor
+        self._ssm_lr_init = model_cfg.lr
         self.save_hyperparameters()
         self.cfg = model_cfg
         self.criterion = CosineSkyLoss()
@@ -49,15 +61,18 @@ class LitModelS4DSkyCosineLoss(LitBaseTask):
         default_params = [p for p in all_params if not hasattr(p, '_optim')]
         optim_params  = [p for p in all_params if     hasattr(p, '_optim')]
 
-        param_groups = [{'params': default_params, 'lr': self.hparams.base_lr,
-                         'weight_decay': self.hparams.weight_decay}]
+        base_lr = getattr(self, '_base_lr_init', self.hparams.base_lr)
+        weight_decay = getattr(self, '_weight_decay_init', self.hparams.weight_decay)
+
+        param_groups = [{'params': default_params, 'lr': base_lr, 'weight_decay': weight_decay}]
 
         hps = [getattr(p, '_optim') for p in optim_params]
         unique_hps = [dict(s) for s in sorted(set(frozenset(hp.items()) for hp in hps))]
+        ssm_lr = getattr(self, '_ssm_lr_init', None)
         for hp in unique_hps:
             group = {
                 'params': [p for p in optim_params if getattr(p, '_optim') == hp],
-                'lr': hp.get('lr', self.hparams.base_lr),
+                'lr': ssm_lr if ssm_lr is not None else hp.get('lr', base_lr),
             }
             group.update(hp)
             param_groups.append(group)
@@ -65,13 +80,36 @@ class LitModelS4DSkyCosineLoss(LitBaseTask):
         optimizer = optim.AdamW(param_groups)
         scheduler = WarmupCosineAnnealingWarmRestarts(
             optimizer,
-            warmup_epochs=self.hparams.warmup_epochs,
-            T_0=self.hparams.T_0,
-            T_mult=self.hparams.T_mult,
-            eta_min=self.hparams.eta_min,
-            warmup_start_factor=self.hparams.warmup_start_factor,
+            warmup_epochs=getattr(self, '_warmup_epochs_init', self.hparams.warmup_epochs),
+            T_0=getattr(self, '_T_0_init', self.hparams.T_0),
+            T_mult=getattr(self, '_T_mult_init', self.hparams.T_mult),
+            eta_min=getattr(self, '_eta_min_init', self.hparams.eta_min),
+            warmup_start_factor=getattr(self, '_warmup_start_factor_init', self.hparams.warmup_start_factor),
         )
         return {'optimizer': optimizer, 'lr_scheduler': {'scheduler': scheduler, 'interval': 'epoch'}}
+
+    def on_train_start(self) -> None:
+        if not self.hparams.reset_optimizer:
+            return
+        base_lr = getattr(self, '_base_lr_init', self.hparams.base_lr)
+        ssm_lr  = getattr(self, '_ssm_lr_init',  None)
+
+        for opt in self.trainer.optimizers:
+            opt.state.clear()
+            for i, group in enumerate(opt.param_groups):
+                lr = ssm_lr if (i > 0 and ssm_lr is not None) else base_lr
+                group['lr'] = lr
+                group['initial_lr'] = lr  # overwrite stale checkpoint value
+
+        for sch_cfg in self.trainer.lr_scheduler_configs:
+            sch_cfg.scheduler = WarmupCosineAnnealingWarmRestarts(
+                sch_cfg.scheduler.optimizer,
+                warmup_epochs=getattr(self, '_warmup_epochs_init', self.hparams.warmup_epochs),
+                T_0=getattr(self, '_T_0_init', self.hparams.T_0),
+                T_mult=getattr(self, '_T_mult_init', self.hparams.T_mult),
+                eta_min=getattr(self, '_eta_min_init', self.hparams.eta_min),
+                warmup_start_factor=getattr(self, '_warmup_start_factor_init', self.hparams.warmup_start_factor),
+            )
 
     def forward(self, x):
         return self.model(x)
@@ -88,24 +126,35 @@ class LitModelS4DSkyCosineLoss(LitBaseTask):
         cos_sim = (v_pred * v_true).sum(dim=-1).clamp(-1 + 1e-6, 1 - 1e-6)
         angular_error_deg = torch.acos(cos_sim).mean() * (180.0 / math.pi)
         ring_dist = ring_distance(v_pred, v_true, self.baseline)
+        searched_area_deg2 = (2 * math.pi * (1 - cos_sim) * (180.0 / math.pi) ** 2).mean()
 
-        return loss, angular_error_deg, ring_dist, pred
+        return loss, angular_error_deg, ring_dist, searched_area_deg2, pred
+
+    @staticmethod
+    def _pred_to_angles(pred: torch.Tensor) -> torch.Tensor:
+        """Convert raw (B, 3) xyz logits to (B, 2) [dec, phi] in radians."""
+        v = pred / (pred.norm(dim=-1, keepdim=True) + 1e-8)
+        dec = torch.asin(v[:, 2].clamp(-1 + 1e-6, 1 - 1e-6))
+        phi = torch.atan2(v[:, 1], v[:, 0])
+        return torch.stack([dec, phi], dim=-1)
 
     def training_step(self, batch, batch_idx):
         X_sequence, y_target, _ = batch
-        loss, angular_error_deg, ring_dist, pred = self.compute_loss(batch)
+        loss, angular_error_deg, ring_dist, searched_area_deg2, pred = self.compute_loss(batch)
         self.log('train/loss', loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log('train/angular_error_deg', angular_error_deg, on_step=False, on_epoch=True)
         self.log('train/ring_distance', ring_dist, on_step=False, on_epoch=True)
-        return {'loss': loss, 'mean': pred.detach(), 'y_target': y_target.detach()}
+        self.log('train/searched_area_deg2', searched_area_deg2, on_step=False, on_epoch=True)
+        return {'loss': loss, 'mean': self._pred_to_angles(pred).detach(), 'y_target': y_target.detach()}
 
     def validation_step(self, batch, batch_idx):
         X_sequence, y_target, _ = batch
-        loss, angular_error_deg, ring_dist, pred = self.compute_loss(batch)
+        loss, angular_error_deg, ring_dist, searched_area_deg2, pred = self.compute_loss(batch)
         self.log('val/loss', loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log('val/angular_error_deg', angular_error_deg, on_step=False, on_epoch=True)
         self.log('val/ring_distance', ring_dist, on_step=False, on_epoch=True)
-        return {'loss': loss, 'mean': pred.detach(), 'y_target': y_target.detach()}
+        self.log('val/searched_area_deg2', searched_area_deg2, on_step=False, on_epoch=True)
+        return {'loss': loss, 'mean': self._pred_to_angles(pred).detach(), 'y_target': y_target.detach()}
 
     def test_step(self, batch, batch_idx):
         X_sequence, y_target, z_observed = batch
@@ -128,3 +177,4 @@ class LitModelS4DSkyCosineLoss(LitBaseTask):
             if 'log_dt' in name:
                 self.log(f'ssm/dt_mean/{name}', param.exp().mean(), on_step=False, on_epoch=True)
                 self.log(f'ssm/dt_max/{name}', param.exp().max(), on_step=False, on_epoch=True)
+                self.log(f'ssm/dt_min/{name}', param.exp().min(), on_step=False, on_epoch=True)

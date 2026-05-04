@@ -78,9 +78,15 @@ class LitModelS4DGaussianNLLLoss(LitBaseTask):
         return {'optimizer': optimizer, 'lr_scheduler': {'scheduler': scheduler, 'interval': 'epoch'}}
 
     def on_load_checkpoint(self, checkpoint: dict) -> None:
-        if self.hparams.reset_optimizer:
-            checkpoint.pop('optimizer_states', None)
-            checkpoint.pop('lr_schedulers', None)
+        if not self.hparams.reset_optimizer:
+            return
+        # Replace checkpoint optimizer/scheduler states with fresh ones built
+        # from the current hyperparams, so training resumes from epoch-0 LR
+        # rather than the saved scheduler position.  Lightning still finds the
+        # keys (no KeyError) but loads fresh zero-momentum, initial-LR state.
+        fresh = self.configure_optimizers()
+        checkpoint['optimizer_states'] = [fresh['optimizer'].state_dict()]
+        checkpoint['lr_schedulers']    = [fresh['lr_scheduler']['scheduler'].state_dict()]
 
     def forward(self, x):
         return self.model(x)

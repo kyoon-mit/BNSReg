@@ -689,13 +689,13 @@ class PlotParamEstCallback(Callback):
 
             cmap = plt.cm.viridis
             snr_cut_obj = pd.cut(snr, bins=snr_bins)
-            bin_totals = pd.Series(np.ones(len(snr))).groupby(snr_cut_obj, observed=True).sum().values
+            bin_totals = pd.Series(np.ones(len(snr))).groupby(snr_cut_obj, observed=False).sum().values
 
             def _frac_within(values, cuts):
                 out = np.zeros((len(snr_centers), len(cuts)))
                 for j, cut in enumerate(cuts):
                     mask = np.abs(values) < cut
-                    counts = pd.Series(mask.astype(int)).groupby(snr_cut_obj, observed=True).sum().values
+                    counts = pd.Series(mask.astype(int)).groupby(snr_cut_obj, observed=False).sum().values
                     with np.errstate(invalid='ignore'):
                         out[:, j] = np.where(bin_totals > 0, counts / bin_totals, np.nan)
                 return out

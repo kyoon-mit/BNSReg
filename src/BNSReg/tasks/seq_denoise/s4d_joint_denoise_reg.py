@@ -7,6 +7,7 @@ from BNSReg.tasks.base_task import LitBaseTask
 from BNSReg.models.s4d_seq2seq import S4ModelSeq2Seq
 from BNSReg.core.config import S4DModelConfig
 from BNSReg.callbacks.log_metric import log_GaussianNLLLoss
+from BNSReg.utils.schedulers import WarmupCosineAnnealingWarmRestarts
 
 class LitModelS4DJointDenoiseReg(LitBaseTask):
     """Joint denoising + regression via shared S4D encoder with two heads.
@@ -37,6 +38,12 @@ class LitModelS4DJointDenoiseReg(LitBaseTask):
         warmup_epochs:    Epochs of pure reconstruction before regression starts.
         max_reg_weight:   Final regression loss weight.
         reg_ramp_epochs:  Epochs to ramp from 0 to max_reg_weight after warmup.
+        base_lr:          Base learning rate for default parameter group.
+        weight_decay:     AdamW weight decay.
+        T_0:              CosineAnnealingWarmRestarts period.
+        T_mult:           Period multiplier after each restart.
+        eta_min:          Minimum LR at cosine trough.
+        warmup_start_factor: LR scale at start of warmup (relative to base_lr).
 
     Data:
         Requires LitBNSDataJointDenoise; batches are
@@ -45,23 +52,26 @@ class LitModelS4DJointDenoiseReg(LitBaseTask):
 
     def __init__(
         self,
-        cfg:             S4DModelConfig,
-        n_vars:          int   = 1,
-        warmup_epochs:   int   = 100,
-        max_reg_weight:  float = 1.0,
-        reg_ramp_epochs: int   = 200,
+        cfg:                  S4DModelConfig,
+        n_vars:               int   = 1,
+        warmup_epochs:        int   = 100,
+        max_reg_weight:       float = 1.0,
+        reg_ramp_epochs:      int   = 200,
+        base_lr:              float = 1e-3,
+        weight_decay:         float = 1e-2,
+        T_0:                  int   = 16,
+        T_mult:               int   = 1,
+        eta_min:              float = 1e-7,
+        warmup_start_factor:  float = 0.01,
     ):
         super().__init__()
-        self.cfg             = cfg
-        self.n_vars          = n_vars
-        self.warmup_epochs   = warmup_epochs
-        self.max_reg_weight  = max_reg_weight
-        self.reg_ramp_epochs = reg_ramp_epochs
+        self.save_hyperparameters()
+        self.cfg = cfg
 
-        self.backbone       = None
-        self.rec_head       = None
-        self.reg_head       = None
-        self.gaussnll       = nn.GaussianNLLLoss(reduction='mean', full=False, eps=1e-6)
+        self.backbone = None
+        self.rec_head = None
+        self.reg_head = None
+        self.gaussnll = nn.GaussianNLLLoss(reduction='mean', full=False, eps=1e-6)
         self.configure_model()
 
     # ------------------------------------------------------------------
@@ -69,13 +79,13 @@ class LitModelS4DJointDenoiseReg(LitBaseTask):
     # ------------------------------------------------------------------
 
     def _reg_weight(self, epoch: int) -> float:
-        if epoch < self.warmup_epochs:
+        if epoch < self.hparams.warmup_epochs:
             return 0.0
         ramp = min(
-            (epoch - self.warmup_epochs) / max(self.reg_ramp_epochs, 1),
+            (epoch - self.hparams.warmup_epochs) / max(self.hparams.reg_ramp_epochs, 1),
             1.0,
         )
-        return float(self.max_reg_weight * ramp)
+        return float(self.hparams.max_reg_weight * ramp)
 
     def on_train_epoch_start(self):
         w = self._reg_weight(self.trainer.current_epoch)
@@ -98,7 +108,7 @@ class LitModelS4DJointDenoiseReg(LitBaseTask):
         self.rec_head = nn.Linear(d_model, n_ifos)
 
         # Regression head: mean-pool over time, then predict mean + log-var
-        self.reg_head = nn.Linear(d_model, self.n_vars * 2)
+        self.reg_head = nn.Linear(d_model, self.hparams.n_vars * 2)
 
     def forward(self, x):
         """Standard forward: returns only the reconstruction output.
@@ -123,8 +133,8 @@ class LitModelS4DJointDenoiseReg(LitBaseTask):
         rec         = self.rec_head(features)                  # (B, L, n_ifos)
         pooled      = features.mean(dim=1)                     # (B, d_model)
         reg_out     = self.reg_head(pooled)                    # (B, n_vars*2)
-        mean        = reg_out[:, :self.n_vars]
-        var         = F.softplus(reg_out[:, self.n_vars:])
+        mean        = reg_out[:, :self.hparams.n_vars]
+        var         = F.softplus(reg_out[:, self.hparams.n_vars:])
         return rec, mean, var
 
     # ------------------------------------------------------------------
@@ -169,9 +179,30 @@ class LitModelS4DJointDenoiseReg(LitBaseTask):
         return self._step(batch, 'test')
 
     def configure_optimizers(self):
-        optimizer = optim.AdamW(self.parameters(), lr=1e-3)
-        scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
-        return {
-            'optimizer': optimizer,
-            'lr_scheduler': {'scheduler': scheduler, 'interval': 'epoch'},
-        }
+        all_params     = list(self.parameters())
+        default_params = [p for p in all_params if not hasattr(p, '_optim')]
+        optim_params   = [p for p in all_params if     hasattr(p, '_optim')]
+
+        param_groups = [{'params': default_params, 'lr': self.hparams.base_lr,
+                         'weight_decay': self.hparams.weight_decay}]
+
+        hps = [getattr(p, '_optim') for p in optim_params]
+        unique_hps = [dict(s) for s in sorted(set(frozenset(hp.items()) for hp in hps))]
+        for hp in unique_hps:
+            group = {
+                'params': [p for p in optim_params if getattr(p, '_optim') == hp],
+                'lr': hp.get('lr', self.hparams.base_lr),
+            }
+            group.update(hp)
+            param_groups.append(group)
+
+        optimizer = optim.AdamW(param_groups)
+        scheduler = WarmupCosineAnnealingWarmRestarts(
+            optimizer,
+            warmup_epochs=self.hparams.warmup_epochs,
+            T_0=self.hparams.T_0,
+            T_mult=self.hparams.T_mult,
+            eta_min=self.hparams.eta_min,
+            warmup_start_factor=self.hparams.warmup_start_factor,
+        )
+        return {'optimizer': optimizer, 'lr_scheduler': {'scheduler': scheduler, 'interval': 'epoch'}}
