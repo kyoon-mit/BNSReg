@@ -114,12 +114,12 @@ data:
       # ===== Variables =====
       target_variables: ['chirp_mass']
       observed_variables: []
-      normalize_variables: true
+      normalize_variables: false
       normalize_range: [0.0, 1.0]
 
       # ===== Files =====
       train_file: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/bns_snr_20_30_uniform_512Hz_100K/train/sig_combined_train.h5
-      test_file: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/bns_snr_20_30_uniform_512Hz_100K/test/sig_combined_test.h5
+      test_file: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/ai4gw@cern/bns_snr_5_50_powerlaw_256Hz_80K_10K_100K/test/sig_combined_test.h5
       val_file: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/bns_snr_20_30_uniform_512Hz_100K/val/sig_combined_val.h5
 
       injected_data_key: data
