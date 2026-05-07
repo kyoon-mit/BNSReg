@@ -1,0 +1,11 @@
+{"time":"2026-05-07T01:51:52.091440684-04:00","level":"INFO","msg":"stream: starting","core version":"0.23.1"}
+{"time":"2026-05-07T01:51:52.321793268-04:00","level":"INFO","msg":"stream: created new stream","id":"sky_merger_sig"}
+{"time":"2026-05-07T01:51:52.321868734-04:00","level":"INFO","msg":"handler: started","stream_id":"sky_merger_sig"}
+{"time":"2026-05-07T01:51:52.322928709-04:00","level":"INFO","msg":"stream: started","id":"sky_merger_sig"}
+{"time":"2026-05-07T01:51:52.322937586-04:00","level":"INFO","msg":"writer: started","stream_id":"sky_merger_sig"}
+{"time":"2026-05-07T01:51:52.322941802-04:00","level":"INFO","msg":"sender: started","stream_id":"sky_merger_sig"}
+{"time":"2026-05-07T01:53:48.120735995-04:00","level":"INFO","msg":"stream: closing","id":"sky_merger_sig"}
+{"time":"2026-05-07T01:53:48.406675181-04:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2026-05-07T01:53:48.670321341-04:00","level":"INFO","msg":"handler: closed","stream_id":"sky_merger_sig"}
+{"time":"2026-05-07T01:53:48.671005853-04:00","level":"INFO","msg":"sender: closed","stream_id":"sky_merger_sig"}
+{"time":"2026-05-07T01:53:48.671025496-04:00","level":"INFO","msg":"stream: closed","id":"sky_merger_sig"}

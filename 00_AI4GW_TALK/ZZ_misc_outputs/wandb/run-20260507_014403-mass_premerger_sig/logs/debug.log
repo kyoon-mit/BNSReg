@@ -1,0 +1,24 @@
+2026-05-07 01:44:03,741 INFO    MainThread:320809 [wandb_setup.py:_flush():80] Current SDK version is 0.23.1
+2026-05-07 01:44:03,741 INFO    MainThread:320809 [wandb_setup.py:_flush():80] Configure stats pid to 320809
+2026-05-07 01:44:03,741 INFO    MainThread:320809 [wandb_setup.py:_flush():80] Loading settings from /n/home04/kyoon/.config/wandb/settings
+2026-05-07 01:44:03,742 INFO    MainThread:320809 [wandb_setup.py:_flush():80] Loading settings from /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/wandb/settings
+2026-05-07 01:44:03,742 INFO    MainThread:320809 [wandb_setup.py:_flush():80] Loading settings from environment variables
+2026-05-07 01:44:03,742 INFO    MainThread:320809 [wandb_init.py:setup_run_log_directory():714] Logging user logs to /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/00_AI4GW_TALK/ZZ_misc_outputs/wandb/run-20260507_014403-mass_premerger_sig/logs/debug.log
+2026-05-07 01:44:03,742 INFO    MainThread:320809 [wandb_init.py:setup_run_log_directory():715] Logging internal logs to /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/00_AI4GW_TALK/ZZ_misc_outputs/wandb/run-20260507_014403-mass_premerger_sig/logs/debug-internal.log
+2026-05-07 01:44:03,742 INFO    MainThread:320809 [wandb_init.py:init():841] calling init triggers
+2026-05-07 01:44:03,742 INFO    MainThread:320809 [wandb_init.py:init():846] wandb.init called with sweep_config: {}
+config: {'_wandb': {}}
+2026-05-07 01:44:03,742 INFO    MainThread:320809 [wandb_init.py:init():889] starting backend
+2026-05-07 01:44:04,889 INFO    MainThread:320809 [wandb_init.py:init():892] sending inform_init request
+2026-05-07 01:44:04,899 INFO    MainThread:320809 [wandb_init.py:init():900] backend started and connected
+2026-05-07 01:44:04,900 INFO    MainThread:320809 [wandb_init.py:init():970] updated telemetry
+2026-05-07 01:44:04,912 INFO    MainThread:320809 [wandb_init.py:init():994] communicating run to backend with 90.0 second timeout
+2026-05-07 01:44:05,549 INFO    MainThread:320809 [wandb_init.py:init():1041] starting run threads in backend
+2026-05-07 01:44:06,488 INFO    MainThread:320809 [wandb_run.py:_console_start():2521] atexit reg
+2026-05-07 01:44:06,489 INFO    MainThread:320809 [wandb_run.py:_redirect():2369] redirect: wrap_raw
+2026-05-07 01:44:06,489 INFO    MainThread:320809 [wandb_run.py:_redirect():2438] Wrapping output streams.
+2026-05-07 01:44:06,489 INFO    MainThread:320809 [wandb_run.py:_redirect():2461] Redirects installed.
+2026-05-07 01:44:06,512 INFO    MainThread:320809 [wandb_init.py:init():1081] run started, returning control to user process
+2026-05-07 01:44:06,898 INFO    MainThread:320809 [wandb_run.py:_config_callback():1396] config_cb None None {'model_cfg': {'d_input': 2, 'd_output': 4, 'd_model': 512, 'd_state': 32, 'n_layers': 4, 'dropout': 0.2, 'dt_min': 1e-05, 'dt_max': 5.0, 'lr': 0.001, 'input_norm': True}, 'beta_nll': 0.3, 'lambda_spread': 0.3, 'base_lr': 5e-05, 'weight_decay': 0.01, 'warmup_epochs': 5, 'T_0': 30, 'T_mult': 1, 'eta_min': 1e-07, 'warmup_start_factor': 0.01, 'reset_optimizer': True, '_instantiator': 'lightning.pytorch.cli.instantiate_module', 'data_cfg': {'train_file': '/n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/ai4gw@cern/bns_snr_5_50_uniform_powerlaw_256Hz_100K/train/sig_combined_train.h5', 'test_file': '/n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/ai4gw@cern/bns_snr_5_50_uniform_powerlaw_256Hz_100K/test/sig_combined_test.h5', 'val_file': '/n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/ai4gw@cern/bns_snr_5_50_uniform_powerlaw_256Hz_100K/val/sig_combined_val.h5', 'injected_data_key': 'whitened_injected', 'sig_only_data_key': '', 'bkg_only_data_key': '', 'strain_frequency': 256, 'downsample_factor': 1, 'strain_duration': 64.0, 'coalescence_time': 63.0, 'window_begin': 51.0, 'window_end': 55.0, 'apply_bandpass': False, 'bandpass_low': 0.0, 'bandpass_high': 30000.0, 'strain_precision': 'torch.float32', 'variables_precision': 'torch.float32', 'rdcc_nbytes': 67108864, 'rdcc_nslots': 10007, 'rdcc_w0': 0.75, 'train_batch_size': 1024, 'val_batch_size': 1024, 'test_batch_size': 512, 'num_workers': 1, 'shuffle': True, 'prefetch_factor': 1, 'persistent_workers': True, 'target_variables': ['chirp_mass', 'mass_ratio'], 'observed_variables': ['snr'], 'normalize_variables': True, 'normalize_range': [0.0, 1.0]}}
+2026-05-07 01:45:12,276 INFO    wandb-AsyncioManager-main:320809 [service_client.py:_forward_responses():80] Reached EOF.
+2026-05-07 01:45:12,276 INFO    wandb-AsyncioManager-main:320809 [mailbox.py:close():137] Closing mailbox, abandoning 1 handles.

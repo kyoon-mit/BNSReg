@@ -1,0 +1,210 @@
+_instantiator:
+    value: lightning.pytorch.cli.instantiate_module
+_wandb:
+    value:
+        cli_version: 0.23.1
+        e:
+            i0ggc7tr69wx1qhml39s7xaddvwvmuvm:
+                args:
+                    - test
+                    - --config
+                    - /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/00_AI4GW_TALK/HOW_TO_GET_RESULTS/configs/mass_merger.yaml
+                    - --trainer.logger.init_args.project
+                    - 00_AI4GW_TALK
+                    - --trainer.logger.init_args.id
+                    - mass_merger_sig
+                    - --trainer.logger.init_args.save_dir
+                    - /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/00_AI4GW_TALK/ZZ_misc_outputs
+                    - --data.init_args.data_cfg.injected_data_key
+                    - whitened_injected
+                    - --data.init_args.data_cfg.num_workers
+                    - "1"
+                    - --data.init_args.data_cfg.prefetch_factor
+                    - "1"
+                    - --ckpt_path
+                    - /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/00_AI4GW_TALK/mass_merger/chirp_mass_ft_FIX_snr_5_50_59-63s_d64_s64_l4/checkpoints/s4d_gaussnll_var0mse_ckpt_epoch=1177.ckpt
+                cpu_count: 64
+                cpu_count_logical: 64
+                cudaVersion: "12.9"
+                disk:
+                    /:
+                        total: "53660876800"
+                        used: "23818854400"
+                email: kyoon@mit.edu
+                executable: /n/home04/kyoon/miniforge3/envs/ssm_cuda312/bin/python
+                git:
+                    commit: 6c98b9490655ef8fa6802d135ed734463b1eb167
+                    remote: https://kyoon-mit:@github.com/kyoon-mit/BNSReg.git
+                gpu: NVIDIA A100-SXM4-40GB
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ampere
+                      memoryTotal: "42949672960"
+                      name: NVIDIA A100-SXM4-40GB
+                      uuid: GPU-f611832b-c07f-a1b2-fbb1-8905b38e4039
+                host: holygpu7c26106.rc.fas.harvard.edu
+                memory:
+                    total: "540132065280"
+                os: Linux-4.18.0-553.44.1.el8_10.x86_64-x86_64-with-glibc2.28
+                program: -m BNSReg.core.main_fit_test
+                python: CPython 3.12.12
+                root: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/00_AI4GW_TALK/ZZ_misc_outputs
+                slurm:
+                    cluster_name: odyssey
+                    conf: /etc/slurm/slurm.conf
+                    cpu_bind: quiet,mask_cpu:0x0000000000000000000000800000
+                    cpu_bind_list: "0x0000000000000000000000800000"
+                    cpu_bind_type: 'mask_cpu:'
+                    cpu_bind_verbose: quiet
+                    cpus_on_node: "4"
+                    cpus_per_task: "4"
+                    distribution: cyclic
+                    gpus_on_node: "1"
+                    gtids: "0"
+                    job_account: iaifi_lab
+                    job_cpus_per_node: "4"
+                    job_end_time: "1778133241"
+                    job_gid: "10416"
+                    job_gpus: "7"
+                    job_group: iaifi_lab
+                    job_id: "10931653"
+                    job_name: mass_merger_sig
+                    job_nodelist: holygpu7c26106
+                    job_num_nodes: "1"
+                    job_partition: gpu_test
+                    job_qos: normal
+                    job_start_time: "1778132041"
+                    job_uid: "67208"
+                    job_user: kyoon
+                    jobid: "10931653"
+                    launch_node_ipaddr: 10.242.104.151
+                    localid: "0"
+                    mem_per_node: "40960"
+                    nnodes: "1"
+                    nodeid: "0"
+                    nodelist: holygpu7c26106
+                    nprocs: "1"
+                    ntasks: "1"
+                    ntasks_per_node: "1"
+                    oom_kill_step: "0"
+                    prio_process: "0"
+                    procid: "0"
+                    pty_port: "10492"
+                    pty_win_col: "90"
+                    pty_win_row: "34"
+                    script_context: prolog_task
+                    srun_comm_host: 10.242.104.151
+                    srun_comm_port: "10695"
+                    step_id: "0"
+                    step_launcher_port: "10695"
+                    step_nodelist: holy8a26602
+                    step_num_nodes: "1"
+                    step_num_tasks: "1"
+                    step_tasks_per_node: "1"
+                    stepid: "0"
+                    stepmgr: holygpu7c26106
+                    submit_dir: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/slurm_logs
+                    submit_host: holy8a26602.rc.fas.harvard.edu
+                    task_pid: "315159"
+                    tasks_per_node: "1"
+                    topology_addr: main.holyoke.holyhdr.holygpu7c26106
+                    topology_addr_pattern: switch.switch.switch.node
+                    tres_per_task: cpu=4
+                startedAt: "2026-05-07T05:35:06.237425Z"
+                writerId: i0ggc7tr69wx1qhml39s7xaddvwvmuvm
+        m:
+            - "1": trainer/global_step
+              "6":
+                - 3
+              "7": []
+            - "2": '*'
+              "5": 1
+              "6":
+                - 1
+              "7": []
+        python_version: 3.12.12
+        t:
+            "1":
+                - 1
+                - 106
+            "2":
+                - 1
+                - 106
+            "3":
+                - 7
+                - 14
+                - 66
+            "4": 3.12.12
+            "5": 0.23.1
+            "12": 0.23.1
+            "13": linux-x86_64
+T_0:
+    value: 10
+T_mult:
+    value: 2
+base_lr:
+    value: 5e-05
+beta_nll:
+    value: 0.3
+data_cfg:
+    value:
+        apply_bandpass: false
+        bandpass_high: 30000
+        bandpass_low: 0
+        bkg_only_data_key: ""
+        coalescence_time: 4
+        downsample_factor: 16
+        injected_data_key: whitened_injected
+        normalize_range:
+            - 0
+            - 1
+        normalize_variables: true
+        num_workers: 1
+        observed_variables:
+            - snr
+        persistent_workers: true
+        prefetch_factor: 1
+        rdcc_nbytes: 67108864
+        rdcc_nslots: 10007
+        rdcc_w0: 0.75
+        shuffle: true
+        sig_only_data_key: ""
+        strain_duration: 5
+        strain_frequency: 4096
+        strain_precision: torch.float32
+        target_variables:
+            - chirp_mass
+            - mass_ratio
+        test_batch_size: 128
+        test_file: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/checks/bns_snr_8_50_uniform_4096Hz_100K_5s/test/sig_combined_test.h5
+        train_batch_size: 128
+        train_file: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/checks/bns_snr_8_50_uniform_4096Hz_100K_5s/train/sig_combined_train.h5
+        val_batch_size: 128
+        val_file: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/checks/bns_snr_8_50_uniform_4096Hz_100K_5s/val/sig_combined_val.h5
+        variables_precision: torch.float32
+        window_begin: 0
+        window_end: 4
+eta_min:
+    value: 1e-07
+lambda_spread:
+    value: 0.5
+model_cfg:
+    value:
+        d_input: 2
+        d_model: 64
+        d_output: 4
+        d_state: 64
+        dropout: 0.2
+        dt_max: 5
+        dt_min: 0.001
+        input_norm: false
+        lr: 0.001
+        n_layers: 4
+reset_optimizer:
+    value: false
+warmup_epochs:
+    value: 5
+warmup_start_factor:
+    value: 0.01
+weight_decay:
+    value: 0.01
