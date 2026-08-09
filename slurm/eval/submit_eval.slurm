@@ -16,5 +16,5 @@ conda activate ssm_cuda312
 
 echo "Running on host: $(hostname)"
 
-cd ${TOP_DIR}/scripts/eval
-python eval_mchirp_q_and_sigmas.py
+cd ${TOP_DIR}/scripts
+python eval.py

@@ -29,4 +29,4 @@ python -m BNSReg.core.main_fit_test test --config "$config_path" \
     --data.init_args.data_cfg.test_file /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/checks/bns_snr_8_50_uniform_4096Hz_100K_5s/test/sig_combined_test.h5 \
     --data.init_args.data_cfg.num_workers 1 \
     --data.init_args.data_cfg.prefetch_factor 1 \
-    --ckpt_path /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/00_AI4GW_TALK/sky_merger/sky_after6_ckpt_62-63s_d64_s64_l4/checkpoints/s4d_sky_angErr_ckpt_epoch=1826.ckpt
+    --ckpt_path /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/00_AI4GW_TALK/sky_merger/sky_ft_ckpt2_SNR_5_50_62-63s_d64_s64_l4/checkpoints/s4d_sky_angErr_ckpt_epoch=3202.ckpt

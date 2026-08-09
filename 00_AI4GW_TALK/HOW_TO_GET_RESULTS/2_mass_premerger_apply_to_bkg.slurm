@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --partition=gpu_test
 #SBATCH --time=20:00
-#SBATCH --job-name=mass_merger_bkg
+#SBATCH --job-name=mass_premerger_bkg
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
@@ -20,4 +20,13 @@ config_path=/n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/00_AI4GW_TALK/HOW_TO_
 echo "Running on host: $(hostname)"
 echo "Using config file: $config_path"
 
-echo NULL
+cd ${TOP_DIR}
+python -m BNSReg.core.main_fit_test test --config "$config_path" \
+    --trainer.logger.init_args.project 00_AI4GW_TALK \
+    --trainer.logger.init_args.id mass_premerger_bkg \
+    --trainer.logger.init_args.save_dir /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/00_AI4GW_TALK/ZZ_misc_outputs \
+    --data.init_args.data_cfg.injected_data_key whitened_bkg \
+    --data.init_args.data_cfg.num_workers 1 \
+    --data.init_args.data_cfg.test_batch_size 512 \
+    --data.init_args.data_cfg.prefetch_factor 1 \
+    --ckpt_path /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/00_AI4GW_TALK/mass_premerger/chirp_mass_ckpt_51-55s_d512_s32_l4/s4d_gaussnll_var0sigma_ckpt_epoch=336.ckpt

@@ -29,4 +29,4 @@ python -m BNSReg.core.main_fit_test test --config "$config_path" \
     --data.init_args.data_cfg.num_workers 1 \
     --data.init_args.data_cfg.test_batch_size 512 \
     --data.init_args.data_cfg.prefetch_factor 1 \
-    --ckpt_path /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/00_AI4GW_TALK/mass_premerger/chirp_mass_ckpt_51-55s_d512_s32_l4/checkpoints/s4d_gaussnll_var0sigma_ckpt_epoch=310.ckpt
+    --ckpt_path /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/00_AI4GW_TALK/mass_premerger/chirp_mass_ckpt_51-55s_d512_s32_l4/s4d_gaussnll_var0sigma_ckpt_epoch=336.ckpt

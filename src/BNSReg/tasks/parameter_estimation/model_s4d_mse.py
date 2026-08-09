@@ -54,3 +54,13 @@ class LitModelS4DMSE(LitBaseTask):
         for i in range(len(y_indiv_mse)):
             self.log(f'val/mse/var_{i}', y_indiv_mse[i], on_step=False, on_epoch=True)
         return loss
+
+    def test_step(self, batch, batch_idx):
+        X_sequence, y_target, z_observed = batch
+        X_sequence = X_sequence.transpose(2, 1)
+        outputs = self(X_sequence)
+        return {
+            'y_true':     y_target.detach().cpu(),
+            'y_pred':     outputs.detach().cpu(),
+            'z_observed': z_observed.detach().cpu(),
+        }

@@ -108,7 +108,7 @@ class BNSDataModuleRegressionConfig(BNSDataModuleConfig):
         valid_keys = {
             'chi1', 'chi2', 'chirp_mass', 'dec', 'distance', 'inclination',
             'mass_1', 'mass_2', 'mass_ratio', 'phi', 'phic', 'psi',
-            's1z', 's2z', 'snr'
+            's1z', 's2z', 'snr', 'inv_snr'
         }
         targets = set(self.target_variables)
         observed = set(self.observed_variables)

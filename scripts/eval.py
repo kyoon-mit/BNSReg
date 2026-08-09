@@ -8,7 +8,9 @@ import corner
 import matplotlib.pyplot as plt
 import torch
 import wandb
-from data_regression import LitBNSDataModule
+import importlib
+from BNSReg.dataloader.regression_loader import LitBNSDataRegression
+from BNSReg.core.config import BNSDataModuleRegressionConfig
 
 class BNSEval():
     def __init__(
@@ -55,38 +57,35 @@ class BNSEval():
         }
         self._bins = {
             'chirp_mass': np.linspace(0.5, 2.5, 41),
+            'mass_ratio': np.linspace(0.0, 1.0, 41),
             'dec': np.linspace(-np.pi/2, np.pi/2, 41),
-            'phi': np.linspace(0, np.pi, 41),
-            'snr': np.linspace(0, 100, 41)
+            'phi': np.linspace(-np.pi, np.pi, 41),
+            'snr': np.linspace(0, 100, 41),
         }
         # iterate over a static copy so we can safely add new keys
         for key, item in list(self._bins.items()):
             self._bins[f'{key}_normalized'] = np.linspace(-3, 3, 30)
 
-    def load_config(self, config_path: str) -> tuple[dict, dict, list]:
+    def load_config(self, config_path: str) -> None:
         cfg = yaml.safe_load(Path(config_path).read_text())
-        self.data_init_args = cfg.get('data', {}).get('init_args', {})
-        self.model_init_args = cfg.get('model', {}).get('init_args', {})
-        self.variables = self.data_init_args.get('variables')
-        self.loss = self.model_init_args.get('loss')
-        if not isinstance(self.variables, list):
-            self.variables = list(self.variables)
-            self.data_init_args['variables'] = self.variables
-        print(f'Variables: {self.variables}.')
-        self.data_init_args['include_snr'] = True
-        
-        # Get wandb config info
+        self.data_cfg_dict = cfg['data']['init_args']['data_cfg']
+        self.model_class_path = cfg['model']['class_path']
+        self.target_variables = self.data_cfg_dict['target_variables']
+        self.observed_variables = self.data_cfg_dict.get('observed_variables', [])
+        print(f'Target variables: {self.target_variables}.')
+        print(f'Observed variables: {self.observed_variables}.')
+
         trainer_config = cfg.get('trainer', {})
         logger_config = trainer_config.get('logger', {}).get('init_args', {})
         self.wandb_project = logger_config.get('project')
         self.wandb_id = logger_config.get('id')
 
     def load_model(self):
-        from model_mse import LitS4ModelMeanOnly
-        self.model = LitS4ModelMeanOnly(**self.model_init_args)
-        checkpoint = torch.load(self.checkpoint_path, weights_only=True,
-                                map_location=torch.device('cpu' if self.compute_on_cpu else 'cuda'))
-        self.model.load_state_dict(checkpoint['state_dict'])
+        module_path, class_name = self.model_class_path.rsplit('.', 1)
+        ModelClass = getattr(importlib.import_module(module_path), class_name)
+        device = 'cpu' if (self.compute_on_cpu or not torch.cuda.is_available()) else 'cuda'
+        self.model = ModelClass.load_from_checkpoint(
+            self.checkpoint_path, map_location=device, weights_only=False)
         self.model.eval()
         
     def maketensor(self, d: dict) -> dict:
@@ -108,51 +107,66 @@ class BNSEval():
         print(f'Dumped results to {csv_path}')
         return df
 
+    def _unnormalize(self, arr: torch.Tensor, variables: list) -> torch.Tensor:
+        lo, hi = self._normalize_range
+        out = arr.clone().float()
+        for i, var in enumerate(variables):
+            if var in self._var_scales:
+                vmin, vmax = self._var_scales[var]
+                out[:, i] = vmin + (vmax - vmin) * (arr[:, i] - lo) / (hi - lo)
+        return out
+
     def compute_vals(self):
         if Path(self.csv_path).exists():
             return
         self.load_model()
-        bns_data_module = LitBNSDataModule(**self.data_init_args)
-        bns_data_module.setup('test')
-        test_data_loader = bns_data_module.test_dataloader()
+        data_cfg = BNSDataModuleRegressionConfig(**self.data_cfg_dict)
+        data_module = LitBNSDataRegression(data_cfg=data_cfg)
+        data_module.setup('test')
+        test_loader = data_module.test_dataloader()
 
-        # Placeholders for values
-        pred_dict, truth_dict = self.dinit(['pred', 'truth'], self.variables)
+        # Set up normalization: var_scales always derived from train_file
+        self._var_scales = dict(getattr(data_module.test_dataset, 'var_scales', {}))
+        self._normalize_range = tuple(self.data_cfg_dict.get('normalize_range', [0.0, 1.0]))
+        do_unnorm = bool(self._var_scales) and self.data_cfg_dict.get('normalize_variables', False)
+
+        n_targets = len(self.target_variables)
+        pred_dict, truth_dict = self.dinit(['pred', 'truth'], self.target_variables)
         snr = []
-        if not self.loss=='MSELoss':
-            pred_sigma_dict = self.dinit(['sigma'], self.variables)
+        has_snr = 'snr' in self.observed_variables
+        snr_idx = self.observed_variables.index('snr') if has_snr else None
         return_dict = dict()
 
-        for batch in test_data_loader:
-            h1, l1, params, idx = batch
-            device = h1.device
-            inputs = torch.stack([h1.to(device), l1.to(device)], dim=2)
-            truths = torch.stack([params[v] for v in self.variables], dim=1)
+        device = next(self.model.parameters()).device
+        for batch in test_loader:
+            X_sequence, y_target, z_observed = batch
+            X_sequence = X_sequence.transpose(2, 1).to(device)  # (B, L, d_input)
 
             with torch.no_grad():
-                preds = self.model(inputs)
+                preds = self.model(X_sequence)  # (B, d_output)
 
-            # Move samples to CPU if required
-            if self.compute_on_cpu:
-                preds = preds.cpu()
-                truths = truths.cpu()
-            
-            for i in range(len(self.variables)):
-                p = self.variables[i]
-                pred_dict[f'pred_{p}'].extend(preds[:, i].tolist())
-                truth_dict[f'truth_{p}'].extend(truths[:, i].tolist())
-                if not self.loss=='MSELoss':
-                    pred_sigma_dict[f'sigma_{p}'].extend(preds[:, i+len(self.variables)].tolist())
-            
-            # Add SNR value
-            snr.extend(params['snr'])
+            preds = preds.cpu()
+            # first n_targets columns are means; remaining (if any) are variances
+            means = preds[:, :n_targets]
+
+            if do_unnorm:
+                means    = self._unnormalize(means,    self.target_variables)
+                y_target = self._unnormalize(y_target, self.target_variables)
+
+            for i, var in enumerate(self.target_variables):
+                pred_dict[f'pred_{var}'].extend(means[:, i].tolist())
+                truth_dict[f'truth_{var}'].extend(y_target[:, i].tolist())
+
+            if has_snr:
+                snr_col = z_observed[:, snr_idx:snr_idx + 1]
+                if do_unnorm and 'snr' in self._var_scales:
+                    snr_col = self._unnormalize(snr_col, ['snr'])
+                snr.extend(snr_col[:, 0].tolist())
 
         return_dict.update(self.maketensor(pred_dict))
         return_dict.update(self.maketensor(truth_dict))
-        return_dict['snr'] = torch.tensor(snr)
-        # TODO: implement for other losses
-        if not self.loss=='MSELoss':
-            return_dict.update(self.makesqrttensor(pred_sigma_dict))
+        if has_snr:
+            return_dict['snr'] = torch.tensor(snr)
         self.dump_to_csv(return_dict, csv_path=self.csv_path)
         return
 
@@ -267,7 +281,7 @@ class BNSEval():
         fig.subplots_adjust(top=.87)
         fig_name = Path(fig_name).with_suffix('.png')
         save_to = Path(self.save_path) / fig_name
-        fig.savefig(save_to, bbox_inches='tigsht')
+        fig.savefig(save_to, bbox_inches='tight')
         print(f'Saved {save_to}')
         # Attempt to upload the figure to wandb (resume existing run by id)
         if hasattr(self, 'wandb_id') and self.wandb_id:
@@ -349,11 +363,11 @@ class BNSEval():
         self.plot()
 
 def main():
-    checkpoint_path = '/n/holystore01/LABS/iaifi_lab/Lab/kyoon/ssm_regression/tmp_lightning/chirp_mass_test/config_chirp_mass_d256_l8_48424918/checkpoints/bns-ckpt-epoch=208.ckpt'
-    config_path = '/n/holystore01/LABS/iaifi_lab/Lab/kyoon/ssm_regression/tmp_lightning/chirp_mass_test/config_chirp_mass_d256_l8_48424918/config/config_20251130135327.yaml'
-    save_path = '/n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs'
+    save_path = '/n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/SAVED_RESULTS/OLD/s4d_gaussnll_snr_20_30_seq_0_55s/setting4'
+    checkpoint_path = f'{save_path}/checkpoints/s4d_gaussnll_ckpt_epoch=120.ckpt'
+    config_path = f'{save_path}/s4d_mse_20_30_seq_0_55s_working_setting.yaml'
     bns_eval = BNSEval(config_path=config_path, checkpoint_path=checkpoint_path,
-                       save_path=save_path, save_suffix='test', compute_on_cpu=False)
+                       save_path=save_path, save_suffix='mse_epoch120', compute_on_cpu=False)
     bns_eval.compute_vals()
     bns_eval.plot()
     return
