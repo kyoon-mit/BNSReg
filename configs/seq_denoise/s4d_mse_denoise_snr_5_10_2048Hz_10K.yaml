@@ -1,0 +1,130 @@
+# lightning.pytorch==2.6.0
+# S4D denoiser (time-domain MSE) on bns_snr_5_10_uniform_2048Hz_10K.
+#
+# No test split exists for this dataset, so test_file points at the val file;
+# BNSDatasetConfig.__post_init__ requires all three paths to exist.
+
+seed_everything: 20260811
+
+trainer:
+  accelerator: gpu
+  strategy: auto
+  devices: 1
+  num_nodes: 1
+  precision: 32-true
+
+  logger:
+    class_path: lightning.pytorch.loggers.wandb.WandbLogger
+    init_args:
+      project: CLAUDE-TESTS
+      name: s4d_mse_denoise_snr_5_10_2048Hz_10K
+      save_dir: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs
+
+  callbacks:
+    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      init_args:
+        monitor: val/loss
+        mode: min
+        save_top_k: 1
+        save_on_train_epoch_end: true
+        filename: 's4d_mse_denoise_{epoch:02d}'
+
+    - class_path: lightning.pytorch.callbacks.EarlyStopping
+      init_args:
+        monitor: val/loss
+        patience: 50
+        mode: min
+        verbose: true
+
+    - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+      init_args:
+        logging_interval: epoch
+
+    # Per-epoch waveform frames + GIF at fit end, logged to wandb.
+    - class_path: BNSReg.callbacks.plot_waveform_evolution.WaveformEvolutionCallback
+      init_args:
+        n_examples: 4
+        every_n_epochs: 1
+        sample_rate: 2048
+        window_begin: 26.0          # absolute time axis, matches data_cfg
+        plot_window: [26.0, 30.0]   # 4 s into the merger
+        show_input: true
+        gif_fps: 2
+
+  fast_dev_run: false
+  max_epochs: 300
+  min_epochs: 1
+  check_val_every_n_epoch: 1
+  num_sanity_val_steps: 2
+  log_every_n_steps: 10
+  gradient_clip_val: 1.0
+  enable_progress_bar: true
+  enable_model_summary: true
+  default_root_dir: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/BNSReg/outputs
+
+# =========================
+# Model
+# =========================
+model:
+  class_path: BNSReg.tasks.seq_denoise.s4d_mse.LitModelS4DMSE
+  init_args:
+    cfg:
+      d_input: 2
+      d_output: 2
+      d_model: 64
+      d_state: 64
+      n_layers: 4
+      dropout: 0.1
+      input_norm: false
+      lr: 1.0e-3
+      dt_min: 0.001
+      dt_max: 0.1
+    base_lr: 1.0e-3
+    weight_decay: 1.0e-2
+    scheduler: warmup_cosine
+    scheduler_kwargs:
+      warmup_epochs: 5
+      T_0: 20
+      T_mult: 2
+      eta_min: 1.0e-7
+      warmup_start_factor: 1.0e-2
+      peak_decay: 0.8
+    monitor: val/loss
+
+# =========================
+# Data
+# =========================
+data:
+  class_path: BNSReg.dataloader.seq_encoder_loader.LitBNSDataSeqEncoder
+  init_args:
+    data_cfg:
+      train_file: /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/checks/bns_snr_5_10_uniform_2048Hz_10K/train/sig_combined_train.h5
+      val_file:   /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/checks/bns_snr_5_10_uniform_2048Hz_10K/val/sig_combined_val.h5
+      test_file:  /n/holystore01/LABS/iaifi_lab/Lab/kyoon/DATA/checks/bns_snr_5_10_uniform_2048Hz_10K/val/sig_combined_val.h5
+
+      injected_data_key: whitened_injected
+      sig_only_data_key: whitened_signal
+
+      strain_frequency: 2048
+      downsample_factor: 1
+      strain_duration: 32.0
+      coalescence_time: 30.0
+      window_begin: 26.0
+      window_end: 30.0
+
+      strain_precision: torch.float32
+      variables_precision: torch.float32
+
+      rdcc_nbytes: 67108864
+      rdcc_nslots: 10007
+      rdcc_w0: 0.75
+
+      train_batch_size: 32
+      val_batch_size: 32
+      test_batch_size: 32
+      num_workers: 8
+      shuffle: true
+      prefetch_factor: 4
+      persistent_workers: true
+
+ckpt_path: null
