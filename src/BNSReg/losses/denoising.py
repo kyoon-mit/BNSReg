@@ -193,6 +193,8 @@ class SpectrogramLoss(nn.Module):
         n_fft: STFT window length in samples. Smaller resolves time better,
             larger resolves frequency better.
         hop_length: samples between consecutive STFT frames.
+        loss_type: which terms to sum: 'convergence', 'log_magnitude', or
+            'composite' (default).
         eps: floor inside the log, and on the spectral convergence
             denominator so a near-silent target cannot blow up the gradient.
     """
@@ -201,50 +203,53 @@ class SpectrogramLoss(nn.Module):
         self,
         n_fft: int = 512,
         hop_length: int = 128,
-        eps: float = 1e-8
+        loss_type: str = 'composite',
+        eps: float = 1e-8,
     ):
         super().__init__()
-        self.n_fft = n_fft
-        self.hop_length = hop_length
-        self.eps = eps
+        if loss_type not in ('convergence', 'log_magnitude', 'composite'):
+            raise ValueError(
+                "loss_type must be 'convergence', 'log_magnitude' or "
+                f"'composite', got {loss_type!r}"
+            )
+        self.n_fft, self.hop_length = n_fft, hop_length
+        self.loss_type, self.eps = loss_type, eps
         # Buffer so the window follows the module across .to(device).
         self.register_buffer('window', torch.hann_window(n_fft))
 
     def _spec(self, x: torch.Tensor) -> torch.Tensor:
         """(B, L, n_ifos) -> (B * n_ifos, freqs, frames) magnitudes."""
         b, l, c = x.shape
-        x = x.permute(0, 2, 1).reshape(b * c, l)
+        # center=True is required: with center=False the final frame is
+        # dropped and a merger on the last sample contributes almost nothing.
         return torch.stft(
-            x,
-            n_fft=self.n_fft,
-            hop_length=self.hop_length,
-            window=self.window,
-            # center=True is required here: with center=False the final frame
-            # is dropped and a merger sitting on the last sample contributes
-            # essentially nothing to the loss.
-            center=True,
-            return_complex=True,
+            x.permute(0, 2, 1).reshape(b * c, l),
+            n_fft=self.n_fft, hop_length=self.hop_length,
+            window=self.window, center=True, return_complex=True,
         ).abs()
 
-    def terms(self, pred: torch.Tensor, target: torch.Tensor):
-        """Returns (spectral_convergence, log_magnitude), both scalars."""
+    def _compute_loss(self, pred: torch.Tensor, target: torch.Tensor):
+        """Selected terms by name; unselected ones are never computed."""
         sp, st = self._spec(pred), self._spec(target)
-        convergence = (
-            torch.linalg.norm(st - sp) / torch.linalg.norm(st).clamp_min(self.eps)
-        )
-        log_magnitude = (
-            torch.log(st + self.eps) - torch.log(sp + self.eps)
-        ).abs().mean()
-        return convergence, log_magnitude
+        out = {}
+        if self.loss_type in ('convergence', 'composite'):
+            out['convergence'] = (torch.linalg.norm(st - sp)
+                                  / torch.linalg.norm(st).clamp_min(self.eps))
+        if self.loss_type in ('log_magnitude', 'composite'):
+            out['log_magnitude'] = (torch.log(st + self.eps)
+                                    - torch.log(sp + self.eps)).abs().mean()
+        return out
 
-    def forward(self, pred: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, pred: torch.Tensor, target: torch.Tensor
+    ) -> torch.Tensor:
         """
         Args:
             pred, target: (B, L, n_ifos)
         Returns:
             scalar loss
         """
-        return sum(self.terms(pred, target))
+        return sum(self._compute_loss(pred, target).values())
 
 
 class BandWeightedSpectralLoss(nn.Module):
