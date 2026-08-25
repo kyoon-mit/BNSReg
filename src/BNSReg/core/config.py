@@ -214,12 +214,20 @@ class S4DDenoisedRegressionConfig(S4DModelConfig):
     denoiser_ckpt and denoiser_cfg are excluded from model_kwargs() so they
     are not forwarded to the S4Model constructor.
     """
-    denoiser_ckpt: str | None = None   # path to LitModelS4DAE .ckpt file
+    denoiser_ckpt: str | None = None   # path to LitModelS4DMSE .ckpt file
     denoiser_cfg:  str | None = None   # path to the denoiser's config YAML
 
     def model_kwargs(self) -> dict[str, object]:
         exclude = {'denoiser_ckpt', 'denoiser_cfg'}
         return {f.name: getattr(self, f.name) for f in fields(self) if f.name not in exclude}
+
+@dataclass(frozen=True, slots=True)
+class S4DResNetMLPModelConfig(S4DModelConfig):
+    """S4DModelConfig extended with a ResNet1D + MLP decoder head."""
+    resnet_layers: tuple[int, ...] = (2, 2, 2)
+    resnet_latent_dim: int = 64
+    mlp_width: int = 64
+    mlp_depth: int = 2
 
 @dataclass(frozen=True, slots=True)
 class LinOSSModelConfig(BNSModelConfig):

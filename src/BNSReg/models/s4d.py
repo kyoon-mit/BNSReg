@@ -43,6 +43,9 @@ import math
 import torch
 import torch.nn as nn
 from einops import repeat
+from BNSReg.models.resnet1d import ResNet1D
+
+from typing import Optional
 
 from BNSReg.functions.dropout import DropoutNd
 
@@ -227,3 +230,136 @@ class S4Model(nn.Module):
         x = self.decoder(x)  # (B, d_model) -> (B, d_output)
 
         return x
+
+class S4ModelSeq2Seq(S4Model):
+    """S4D sequence-to-sequence model."""
+
+    def __init__(
+        self,
+        d_input: int,
+        d_output: int,
+        d_model: int = 128,
+        d_state: int = 64,
+        n_layers: int = 4,
+        dropout: float = 0.2,
+        dt_min: float = 0.001,
+        dt_max: float = 0.1,
+        prenorm: bool = True,
+        num_groups: Optional[int] = None,
+        lr: Optional[float] = None,
+        input_norm: bool = False,
+    ):
+        super().__init__(
+            d_input=d_input,
+            d_output=d_output,
+            d_model=d_model,
+            d_state=d_state,
+            n_layers=n_layers,
+            dropout=dropout,
+            dt_min=dt_min,
+            dt_max=dt_max,
+            lr=lr,
+            input_norm=input_norm,
+        )
+        self.prenorm = prenorm
+        self._groupnorm = num_groups is not None
+        if self._groupnorm:
+            self.norms = nn.ModuleList(
+                [
+                    nn.GroupNorm(num_groups=num_groups, num_channels=d_model)
+                    for _ in range(n_layers)
+                ]
+            )
+
+    def _apply_norm(self, norm: nn.Module, x: torch.Tensor) -> torch.Tensor:
+        # x is (B, d_model, L). GroupNorm1D normalizes channels directly;
+        # LayerNorm needs the (B, L, d_model) view.
+        if self._groupnorm:
+            return norm(x)
+        return norm(x.transpose(-1, -2)).transpose(-1, -2)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x: (B, d_input, L)
+
+        Returns:
+            (B, d_output, L)
+        """
+        x = x.transpose(-1, -2)  # (B, L, d_input)
+        x = self.encoder(x)  # (B, L, d_model)
+        x = x.transpose(-1, -2)  # (B, d_model, L)
+        for layer, norm, dropout in zip(
+            self.s4_layers, self.norms, self.dropouts, strict=True
+        ):
+            # S4D.forward returns (y, state); the state is unused here.
+            if self.prenorm:
+                z = self._apply_norm(norm, x)
+                z, _ = layer(z)
+                z = dropout(z)
+                x = x + z
+            else:
+                z, _ = layer(x)
+                z = dropout(z)
+                x = self._apply_norm(norm, z + x)
+        x = x.transpose(-1, -2)  # (B, L, d_model)
+        x = self.decoder(x)  # (B, L, d_output)
+        return x.transpose(-1, -2)  # (B, d_output, L)
+
+class S4ModelResNetMLPDecoder(S4Model):
+    """S4Model backbone with a ResNet1D + MLP readout head in place of the
+    mean-pool + linear decoder. Ported from aframe's S4ModelResNetMLPDecoder.
+    """
+
+    def __init__(
+        self,
+        d_input: int,
+        d_output: int,
+        d_model: int = 256,
+        d_state: int = 64,
+        n_layers: int = 4,
+        dropout: float = 0.2,
+        dt_min: float = 0.001,
+        dt_max: float = 0.1,
+        prenorm: bool = False,
+        lr: Optional[float] = None,
+        input_norm: bool = False,
+        resnet_layers: tuple[int, ...] = (2, 2, 2),
+        resnet_latent_dim: int = 64,
+        mlp_width: int = 64,
+        mlp_depth: int = 2,
+    ):
+        super().__init__(
+            d_input=d_input, d_output=d_output, d_model=d_model, d_state=d_state,
+            n_layers=n_layers, dropout=dropout, dt_min=dt_min, dt_max=dt_max,
+            lr=lr, input_norm=input_norm,
+        )
+        self.prenorm = prenorm
+        self.resnet = ResNet1D(in_channels=d_model, layers=list(resnet_layers), classes=resnet_latent_dim)
+        width = resnet_latent_dim
+        mlp: list[nn.Module] = []
+        for _ in range(mlp_depth):
+            mlp += [nn.Linear(width, mlp_width), nn.GELU()]
+            width = mlp_width
+        mlp.append(nn.Linear(width, d_output))
+        self.mlp = nn.Sequential(*mlp)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """x: (B, L, d_input) -> (B, d_output)"""
+        if self._input_norm is not None:
+            x = self._input_norm(x.transpose(1, 2)).transpose(1, 2)
+        x = self.encoder(x)  # (B, L, d_model)
+        x = x.transpose(-1, -2)  # (B, d_model, L)
+        for layer, norm, dropout in zip(self.s4_layers, self.norms, self.dropouts, strict=True):
+            # S4D.forward returns (y, state); the state is unused here.
+            if self.prenorm:
+                z = norm(x.transpose(-1, -2)).transpose(-1, -2)
+                z, _ = layer(z)
+                z = dropout(z)
+                x = x + z
+            else:
+                z, _ = layer(x)
+                z = dropout(z)
+                x = norm((z + x).transpose(-1, -2)).transpose(-1, -2)
+        h = self.resnet(x)  # (B, d_model, L) -> (B, resnet_latent_dim)
+        return self.mlp(h)  # (B, d_output)

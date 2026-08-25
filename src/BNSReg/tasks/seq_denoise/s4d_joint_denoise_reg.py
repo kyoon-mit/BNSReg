@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from torch import optim
 
 from BNSReg.tasks.base_task import LitBaseTask
-from BNSReg.models.s4d_seq2seq import S4ModelSeq2Seq
+from BNSReg.models.s4d import S4ModelSeq2Seq
 from BNSReg.core.config import S4DModelConfig
 from BNSReg.callbacks.log_metric import log_GaussianNLLLoss
 from BNSReg.utils.schedulers import WarmupCosineAnnealingWarmRestarts

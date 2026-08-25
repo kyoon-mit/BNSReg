@@ -3,8 +3,10 @@ import torch.nn.functional as F
 from torch import optim
 
 from BNSReg.tasks.base_task import LitBaseTask
-from BNSReg.models.s4d_seq2seq import S4ModelSeq2Seq
+from BNSReg.models.s4d import S4ModelSeq2Seq
 from BNSReg.core.config import S4DModelConfig
+from BNSReg.utils.optim_groups import s4_param_groups
+from BNSReg.utils.schedulers import build_lr_scheduler
 
 
 class LitModelS4DAE_PSD(LitBaseTask):
@@ -16,13 +18,22 @@ class LitModelS4DAE_PSD(LitBaseTask):
     This encourages the model to reproduce the correct spectral shape rather
     than exact time-domain point values.
 
-    Input/output shapes follow LitModelS4DAE exactly:
+    Input/output shapes follow LitModelS4DMSE exactly:
         batch: (B, n_ifos, L), (B, n_ifos, L)
         model: (B, L, d_input=n_ifos) -> (B, L, d_output=n_ifos)
     """
 
-    def __init__(self, cfg: S4DModelConfig):
+    def __init__(
+        self,
+        cfg: S4DModelConfig,
+        base_lr: float = 1e-3,
+        weight_decay: float = 1e-2,
+        scheduler: str = 'exponential',
+        scheduler_kwargs: dict | None = None,
+        monitor: str = 'val/psd_loss',
+    ):
         super().__init__()
+        self.save_hyperparameters()
         self.cfg = cfg
         self.model = None
         self.configure_model()
@@ -58,7 +69,9 @@ class LitModelS4DAE_PSD(LitBaseTask):
         out = self(x)               # (B, L, d_output)
 
         ### AD HOC: target multiplied by a factor 100
-        t *= 100
+        # Not in-place: `t` is a view of the batch tensor, which the dataloader
+        # may reuse (pinned memory / persistent workers).
+        t = t * 100
         loss = self._psd_mse(out, t)
         self.log(f'{stage}/psd_loss', loss, on_step=False, on_epoch=True, prog_bar=True)
 
@@ -79,9 +92,15 @@ class LitModelS4DAE_PSD(LitBaseTask):
         return self._step(batch, 'test')
 
     def configure_optimizers(self):
-        optimizer = optim.AdamW(self.parameters(), lr=1e-3)
-        scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
-        return {
-            'optimizer': optimizer,
-            'lr_scheduler': {'scheduler': scheduler, 'interval': 'epoch'},
-        }
+        optimizer = optim.AdamW(
+            s4_param_groups(self, self.hparams.base_lr, self.hparams.weight_decay)
+        )
+        sched_config = build_lr_scheduler(
+            self.hparams.scheduler,
+            optimizer,
+            self.hparams.scheduler_kwargs,
+            monitor=self.hparams.monitor,
+        )
+        if sched_config is None:
+            return optimizer
+        return {'optimizer': optimizer, 'lr_scheduler': sched_config}

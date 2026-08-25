@@ -4,7 +4,7 @@ from torch import optim
 
 from BNSReg.losses.denoising import TripletSpectralLoss
 from BNSReg.tasks.base_task import LitBaseTask
-from BNSReg.models.s4d_seq2seq import S4ModelSeq2Seq
+from BNSReg.models.s4d import S4ModelSeq2Seq
 from BNSReg.core.config import S4DModelConfig
 
 

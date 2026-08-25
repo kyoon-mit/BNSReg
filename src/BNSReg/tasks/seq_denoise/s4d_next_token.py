@@ -3,7 +3,7 @@ import torch.nn.functional as F
 from torch import optim
 
 from BNSReg.tasks.base_task import LitBaseTask
-from BNSReg.models.s4d_seq2seq import S4ModelSeq2Seq
+from BNSReg.models.s4d import S4ModelSeq2Seq
 from BNSReg.core.config import S4DModelConfig
 
 
@@ -23,7 +23,7 @@ class LitModelS4DNextToken(LitBaseTask):
     The S4D SSM is naturally causal (y_t depends only on u_0 … u_t), so
     no masking is needed and the convolutional training path is unmodified.
 
-    Input/output shapes follow LitModelS4DAE exactly (batch from
+    Input/output shapes follow LitModelS4DMSE exactly (batch from
     BNSDatasetSeqEncoder returns (injected, signal) pairs of shape
     (B, n_ifos, L)).
     """
